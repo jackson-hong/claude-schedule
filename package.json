@@ -1,0 +1,24 @@
+{
+  "name": "claude-schedule",
+  "version": "1.0.0",
+  "description": "CLI tool to manage scheduled Claude Code tasks via macOS launchd",
+  "main": "dist/index.js",
+  "bin": {
+    "claude-schedule": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "commander": "^12.1.0",
+    "nodemailer": "^8.0.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/nodemailer": "^7.0.11",
+    "typescript": "^5.6.0"
+  }
+}
