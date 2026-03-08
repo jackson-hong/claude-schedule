@@ -8,10 +8,12 @@ import { writePlist, deletePlist } from "../lib/plist";
 import { load, unload } from "../lib/launchctl";
 import { plistPath, logPath } from "../lib/paths";
 import { Schedule } from "../types";
-import { startRun, getRun, cancelRun } from "./runner";
+import { startRun, getRun, cancelRun, findActiveRunId } from "./runner";
 import { getDashboardHtml } from "./html";
 import { listRuns, getRunRecord, getRunOutput, deleteRunHistory } from "../lib/runs";
+import { savePromptVersion, listPromptVersions, getPromptVersion, deletePromptHistory } from "../lib/prompt-history";
 import { saveGmailConfig, loadGmailConfig, removeGmailConfig, isGmailConnected, testGmailConnection } from "../lib/gmail";
+import { saveSlackConfig, loadSlackConfig, removeSlackConfig, isSlackConnected, testWebhook } from "../lib/slack";
 
 function json(res: ServerResponse, data: unknown, status = 200): void {
   res.writeHead(status, { "Content-Type": "application/json" });
@@ -72,12 +74,13 @@ export async function handleRequest(
     // POST /api/schedules — Add new schedule
     if (method === "POST" && pathname === "/api/schedules") {
       const body = await parseBody(req);
-      const { name, at, prompt, dir, useGmail } = body as {
+      const { name, at, prompt, dir, useGmail, useSlack } = body as {
         name: string;
         at: string;
         prompt: string;
         dir?: string;
         useGmail?: boolean;
+        useSlack?: boolean;
       };
 
       if (!name || !at || !prompt) {
@@ -99,6 +102,7 @@ export async function handleRequest(
         workDir,
         createdAt: new Date().toISOString(),
         useGmail: !!useGmail,
+        useSlack: !!useSlack,
       };
 
       addSchedule(schedule);
@@ -120,17 +124,24 @@ export async function handleRequest(
       }
 
       const body = await parseBody(req);
-      const { at, prompt, dir, useGmail } = body as {
+      const { at, prompt, dir, useGmail, useSlack } = body as {
         at?: string;
         prompt?: string;
         dir?: string;
         useGmail?: boolean;
+        useSlack?: boolean;
       };
 
       const updates: Record<string, unknown> = {};
 
       if (useGmail !== undefined) updates.useGmail = !!useGmail;
-      if (prompt !== undefined) updates.prompt = String(prompt);
+      if (useSlack !== undefined) updates.useSlack = !!useSlack;
+      if (prompt !== undefined) {
+        if (String(prompt) !== existing.prompt) {
+          savePromptVersion(name, existing.prompt);
+        }
+        updates.prompt = String(prompt);
+      }
       if (dir !== undefined) {
         updates.workDir = dir
           ? path.resolve(String(dir).replace(/^~/, os.homedir()))
@@ -167,6 +178,7 @@ export async function handleRequest(
       deletePlist(name);
       removeSchedule(name);
       deleteRunHistory(name);
+      deletePromptHistory(name);
       json(res, { ok: true });
       return;
     }
@@ -189,6 +201,21 @@ export async function handleRequest(
         error(res, "Run not found or already completed.", 404);
         return;
       }
+      json(res, { ok: true });
+      return;
+    }
+
+    // POST /api/schedules/:name/runs/:number/cancel — Cancel by name and run number
+    const cancelByNameMatch = pathname.match(/^\/api\/schedules\/([^/]+)\/runs\/(\d+)\/cancel$/);
+    if (method === "POST" && cancelByNameMatch) {
+      const name = decodeURIComponent(cancelByNameMatch[1]);
+      const number = parseInt(cancelByNameMatch[2], 10);
+      const runId = findActiveRunId(name, number);
+      if (!runId) {
+        error(res, "Run not found or already completed.", 404);
+        return;
+      }
+      cancelRun(runId);
       json(res, { ok: true });
       return;
     }
@@ -356,6 +383,84 @@ export async function handleRequest(
     if (method === "DELETE" && pathname === "/api/gmail/disconnect") {
       removeGmailConfig();
       json(res, { connected: false });
+      return;
+    }
+
+    // GET /api/slack/status — Slack connection status
+    if (method === "GET" && pathname === "/api/slack/status") {
+      const config = loadSlackConfig();
+      json(res, {
+        connected: isSlackConnected(),
+        channelName: config?.channelName || null,
+      });
+      return;
+    }
+
+    // POST /api/slack/connect — Save Slack webhook and test
+    if (method === "POST" && pathname === "/api/slack/connect") {
+      const body = await parseBody(req);
+      const { webhookUrl, channelName } = body as { webhookUrl: string; channelName: string };
+      if (!webhookUrl) {
+        error(res, "Missing required field: webhookUrl");
+        return;
+      }
+
+      const test = await testWebhook(String(webhookUrl));
+      if (!test.ok) {
+        error(res, `Webhook test failed: ${test.error}`);
+        return;
+      }
+
+      saveSlackConfig(String(webhookUrl), String(channelName || "Slack"));
+      json(res, { connected: true, channelName: String(channelName || "Slack") });
+      return;
+    }
+
+    // DELETE /api/slack/disconnect — Remove Slack config
+    if (method === "DELETE" && pathname === "/api/slack/disconnect") {
+      removeSlackConfig();
+      json(res, { connected: false });
+      return;
+    }
+
+    // GET /api/schedules/:name/prompts — List prompt versions
+    const promptsListMatch = pathname.match(/^\/api\/schedules\/([^/]+)\/prompts$/);
+    if (method === "GET" && promptsListMatch) {
+      const name = decodeURIComponent(promptsListMatch[1]);
+      const schedule = getSchedule(name);
+      if (!schedule) {
+        error(res, `Schedule "${name}" not found.`, 404);
+        return;
+      }
+      const limit = parseInt(url.searchParams.get("limit") || "20", 10);
+      const offset = parseInt(url.searchParams.get("offset") || "0", 10);
+      json(res, listPromptVersions(name, limit, offset));
+      return;
+    }
+
+    // POST /api/schedules/:name/prompts/:number/restore — Restore prompt version
+    const promptRestoreMatch = pathname.match(/^\/api\/schedules\/([^/]+)\/prompts\/(\d+)\/restore$/);
+    if (method === "POST" && promptRestoreMatch) {
+      const name = decodeURIComponent(promptRestoreMatch[1]);
+      const number = parseInt(promptRestoreMatch[2], 10);
+      const schedule = getSchedule(name);
+      if (!schedule) {
+        error(res, `Schedule "${name}" not found.`, 404);
+        return;
+      }
+      const version = getPromptVersion(name, number);
+      if (!version) {
+        error(res, `Prompt version #${number} not found.`, 404);
+        return;
+      }
+      // Save current prompt as a version before restoring
+      savePromptVersion(name, schedule.prompt);
+      // Update schedule with restored prompt
+      unload(plistPath(name));
+      const updated = updateSchedule(name, { prompt: version.prompt });
+      const plist = writePlist(updated);
+      load(plist);
+      json(res, updated);
       return;
     }
 

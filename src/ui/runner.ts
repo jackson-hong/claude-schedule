@@ -2,7 +2,7 @@ import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import { getSchedule } from "../lib/config";
 import { createRun, completeRun, appendRunOutput } from "../lib/runs";
-import { isGmailConnected, getMcpConfigPath } from "../lib/gmail";
+import { shouldUseMcpConfig, getMcpConfigPath } from "../lib/mcp-config";
 
 interface LogEntry {
   type: "thinking" | "tool_use" | "tool_result" | "text" | "system" | "error";
@@ -89,7 +89,7 @@ export function startRun(name: string): { runId: string; runNumber: number } {
   delete env.CLAUDE_CODE_ENTRYPOINT;
 
   const args = ["--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"];
-  if (schedule.useGmail && isGmailConnected()) {
+  if (shouldUseMcpConfig(schedule)) {
     args.push("--mcp-config", getMcpConfigPath());
   }
   args.push("-p", schedule.prompt);
@@ -98,6 +98,7 @@ export function startRun(name: string): { runId: string; runNumber: number } {
     cwd: schedule.workDir,
     env,
     stdio: ["ignore", "pipe", "pipe"],
+    detached: true,
   });
 
   const info: RunInfo = {
@@ -177,13 +178,27 @@ export function getRun(runId: string): RunInfo | undefined {
   return runs.get(runId);
 }
 
+export function findActiveRunId(name: string, runNumber: number): string | undefined {
+  for (const [runId, info] of runs) {
+    if (info.name === name && info.runNumber === runNumber && !info.done) {
+      return runId;
+    }
+  }
+  return undefined;
+}
+
 export function cancelRun(runId: string): boolean {
   const info = runs.get(runId);
   if (!info || info.done) return false;
-  info.process.kill("SIGTERM");
+  const pid = info.process.pid;
+  if (!pid) return false;
+  // Kill the entire process group (negative pid) so child processes are also terminated
+  try { process.kill(-pid, "SIGTERM"); } catch { /* already dead */ }
   // Force kill after 3 seconds if still alive
   setTimeout(() => {
-    if (!info.done) info.process.kill("SIGKILL");
+    if (!info.done) {
+      try { process.kill(-pid, "SIGKILL"); } catch { /* already dead */ }
+    }
   }, 3000);
   return true;
 }

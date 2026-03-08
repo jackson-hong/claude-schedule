@@ -6,6 +6,7 @@ export interface Schedule {
   workDir: string;
   createdAt: string;
   useGmail?: boolean;
+  useSlack?: boolean;
 }
 
 export interface RunRecord {
@@ -24,4 +25,16 @@ export interface RunHistory {
   scheduleName: string;
   nextRunNumber: number;
   runs: RunRecord[];
+}
+
+export interface PromptVersion {
+  number: number;
+  prompt: string;
+  savedAt: string;
+}
+
+export interface PromptHistory {
+  scheduleName: string;
+  nextVersionNumber: number;
+  versions: PromptVersion[];
 }

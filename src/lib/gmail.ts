@@ -1,7 +1,7 @@
 import fs from "fs";
-import path from "path";
 import nodemailer from "nodemailer";
-import { CONFIG_DIR, GMAIL_CONFIG_FILE, MCP_CONFIG_FILE } from "./paths";
+import { CONFIG_DIR, GMAIL_CONFIG_FILE } from "./paths";
+import { regenerateMcpConfig } from "./mcp-config";
 
 export interface GmailConfig {
   email: string;
@@ -16,16 +16,7 @@ export function saveGmailConfig(email: string, appPassword: string): void {
   const config: GmailConfig = { email, appPassword };
   fs.writeFileSync(GMAIL_CONFIG_FILE, JSON.stringify(config, null, 2), "utf-8");
 
-  // Generate mcp.json for claude --mcp-config
-  const mcpConfig = {
-    mcpServers: {
-      gmail: {
-        command: "node",
-        args: [path.join(__dirname, "..", "mcp", "gmail-server.js")],
-      },
-    },
-  };
-  fs.writeFileSync(MCP_CONFIG_FILE, JSON.stringify(mcpConfig, null, 2), "utf-8");
+  regenerateMcpConfig();
 }
 
 export function loadGmailConfig(): GmailConfig | null {
@@ -39,15 +30,11 @@ export function loadGmailConfig(): GmailConfig | null {
 
 export function removeGmailConfig(): void {
   if (fs.existsSync(GMAIL_CONFIG_FILE)) fs.unlinkSync(GMAIL_CONFIG_FILE);
-  if (fs.existsSync(MCP_CONFIG_FILE)) fs.unlinkSync(MCP_CONFIG_FILE);
+  regenerateMcpConfig();
 }
 
 export function isGmailConnected(): boolean {
-  return fs.existsSync(GMAIL_CONFIG_FILE) && fs.existsSync(MCP_CONFIG_FILE);
-}
-
-export function getMcpConfigPath(): string {
-  return MCP_CONFIG_FILE;
+  return fs.existsSync(GMAIL_CONFIG_FILE);
 }
 
 export async function testGmailConnection(

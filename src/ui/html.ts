@@ -466,6 +466,35 @@ export function getDashboardHtml(): string {
     margin-right: 6px;
   }
 
+  .slack-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #1a1a2e;
+    color: #e0a3ff;
+    border: 1px solid #3a2a4a;
+  }
+
+  .slack-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #a3a3a3;
+  }
+
+  .slack-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .slack-dot.connected { background: #22c55e; }
+  .slack-dot.disconnected { background: #ef4444; }
+
   .gmail-badge {
     display: inline-block;
     padding: 2px 8px;
@@ -570,6 +599,94 @@ export function getDashboardHtml(): string {
     letter-spacing: 0.5px;
   }
 
+  /* Prompt History */
+  .prompt-history-link {
+    font-size: 11px;
+    color: #737373;
+    text-decoration: none;
+    cursor: pointer;
+    margin-top: 4px;
+    display: inline-block;
+  }
+
+  .prompt-history-link:hover { color: #d4a574; }
+
+  .version-list {
+    list-style: none;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+
+  .version-item {
+    padding: 12px;
+    border: 1px solid #262626;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: #1a1a1a;
+  }
+
+  .version-item:hover { border-color: #404040; }
+
+  .version-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  .version-meta .version-number {
+    font-weight: 600;
+    color: #a3a3a3;
+  }
+
+  .version-meta .version-time {
+    color: #525252;
+  }
+
+  .version-prompt {
+    font-size: 13px;
+    line-height: 1.5;
+    word-break: break-word;
+    color: #d4d4d4;
+  }
+
+  .diff-line {
+    font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 1px 8px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .diff-add {
+    background: #052e16;
+    color: #4ade80;
+  }
+
+  .diff-del {
+    background: #2a0a0a;
+    color: #f87171;
+  }
+
+  .diff-ctx {
+    color: #737373;
+  }
+
+  .diff-sep {
+    color: #525252;
+    font-size: 11px;
+    padding: 2px 8px;
+    user-select: none;
+  }
+
+  .version-actions {
+    margin-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
@@ -578,6 +695,8 @@ export function getDashboardHtml(): string {
 <header>
   <h1>claude-<span>schedule</span></h1>
   <div class="header-actions">
+    <div class="slack-status" id="slackStatus"></div>
+    <button class="btn" id="slackBtn" onclick="openSlackModal()">Connect Slack</button>
     <div class="gmail-status" id="gmailStatus"></div>
     <button class="btn" id="gmailBtn" onclick="openGmailModal()">Connect Gmail</button>
     <button class="btn btn-primary" onclick="openAddModal()">+ Add Schedule</button>
@@ -617,6 +736,11 @@ export function getDashboardHtml(): string {
       <label for="addUseGmail">Enable Gmail</label>
       <span class="hint" id="addGmailHint"></span>
     </div>
+    <div class="form-group-inline">
+      <input type="checkbox" id="addUseSlack" />
+      <label for="addUseSlack">Enable Slack</label>
+      <span class="hint" id="addSlackHint"></span>
+    </div>
     <div class="modal-footer">
       <button class="btn" onclick="previewCron()">Preview Cron</button>
       <button class="btn" onclick="closeModal('addModal')">Cancel</button>
@@ -654,6 +778,11 @@ export function getDashboardHtml(): string {
       <input type="checkbox" id="editUseGmail" />
       <label for="editUseGmail">Enable Gmail</label>
       <span class="hint" id="editGmailHint"></span>
+    </div>
+    <div class="form-group-inline">
+      <input type="checkbox" id="editUseSlack" />
+      <label for="editUseSlack">Enable Slack</label>
+      <span class="hint" id="editSlackHint"></span>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="previewEditCron()">Preview Cron</button>
@@ -710,8 +839,20 @@ export function getDashboardHtml(): string {
       <textarea id="promptContent" style="min-height:40vh;"></textarea>
     </div>
     <div class="modal-footer">
+      <button class="btn" onclick="viewPromptHistoryFromEdit()" style="margin-right:auto;">History</button>
       <button class="btn" onclick="closeModal('promptModal')">Cancel</button>
       <button class="btn btn-primary" id="promptSaveBtn" onclick="savePrompt()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt History Modal -->
+<div class="modal-overlay" id="promptHistoryModal">
+  <div class="modal modal-lg">
+    <h2 id="promptHistoryTitle">Prompt History</h2>
+    <div id="promptHistoryContent"><div class="no-builds">Loading...</div></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('promptHistoryModal')">Close</button>
     </div>
   </div>
 </div>
@@ -760,12 +901,46 @@ export function getDashboardHtml(): string {
   </div>
 </div>
 
+<!-- Slack Connect Modal -->
+<div class="modal-overlay" id="slackModal">
+  <div class="modal" style="max-width: 460px;">
+    <h2 id="slackModalTitle">Connect Slack</h2>
+    <div id="slackFormSection">
+      <div class="form-group">
+        <label for="slackWebhookUrl">Incoming Webhook URL</label>
+        <input id="slackWebhookUrl" type="text" placeholder="https://hooks.slack.com/services/T.../B.../..." />
+      </div>
+      <div class="form-group">
+        <label for="slackChannelName">Channel Name (for display)</label>
+        <input id="slackChannelName" type="text" placeholder="#general" />
+      </div>
+      <div style="font-size:12px;color:#525252;margin-bottom:16px;">
+        Slack App &gt; Incoming Webhooks &gt; Activate &gt; Add New Webhook to Workspace &gt; select channel &gt; copy URL.
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('slackModal')">Cancel</button>
+        <button class="btn btn-primary" id="slackConnectBtn" onclick="connectSlack()">Test &amp; Connect</button>
+      </div>
+    </div>
+    <div id="slackConnectedSection" style="display:none;">
+      <p style="font-size:14px;margin-bottom:8px;">Connected to:</p>
+      <p style="font-size:16px;font-weight:600;color:#fff;margin-bottom:20px;" id="slackConnectedChannel"></p>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('slackModal')">Close</button>
+        <button class="btn btn-danger" id="slackDisconnectBtn" onclick="disconnectSlack()">Disconnect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 let schedules = [];
 let deleteTarget = null;
 let buildHistoryCache = {};
 let gmailConnected = false;
 let gmailEmail = null;
+let slackConnected = false;
+let slackChannel = null;
 
 async function api(path, opts = {}) {
   const res = await fetch(path, {
@@ -882,6 +1057,79 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
+function simpleDiff(oldText, newText) {
+  const oldLines = oldText.split('\\n');
+  const newLines = newText.split('\\n');
+  const m = oldLines.length;
+  const n = newLines.length;
+
+  // LCS DP
+  const dp = Array.from({length: m + 1}, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = oldLines[i-1] === newLines[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+    }
+  }
+
+  // Backtrack
+  const result = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldLines[i-1] === newLines[j-1]) {
+      result.push({type: 'ctx', line: oldLines[i-1]});
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+      result.push({type: 'add', line: newLines[j-1]});
+      j--;
+    } else {
+      result.push({type: 'del', line: oldLines[i-1]});
+      i--;
+    }
+  }
+  result.reverse();
+  return result;
+}
+
+function renderDiff(oldPrompt, newPrompt) {
+  const diff = simpleDiff(oldPrompt, newPrompt);
+  if (diff.length === 0) return '<div class="diff-line diff-ctx">(empty)</div>';
+
+  // Check if there are any changes
+  const hasChanges = diff.some(d => d.type !== 'ctx');
+  if (!hasChanges) return '<div class="diff-line diff-ctx">(no changes)</div>';
+
+  // Collect indices of changed lines
+  const changed = new Set();
+  diff.forEach((d, idx) => { if (d.type !== 'ctx') changed.add(idx); });
+
+  // Mark context lines within 2 lines of a change
+  const visible = new Set();
+  diff.forEach((_, idx) => {
+    if (changed.has(idx)) {
+      for (let k = Math.max(0, idx - 2); k <= Math.min(diff.length - 1, idx + 2); k++) {
+        visible.add(k);
+      }
+    }
+  });
+
+  let html = '';
+  let skipping = false;
+  diff.forEach((d, idx) => {
+    if (!visible.has(idx)) {
+      if (!skipping) {
+        html += '<div class="diff-sep">...</div>';
+        skipping = true;
+      }
+      return;
+    }
+    skipping = false;
+    const prefix = d.type === 'add' ? '+ ' : d.type === 'del' ? '- ' : '  ';
+    html += '<div class="diff-line diff-' + d.type + '">' + prefix + escapeHtml(d.line) + '</div>';
+  });
+
+  return html;
+}
+
 function render() {
   const el = document.getElementById('content');
   if (schedules.length === 0) {
@@ -899,8 +1147,9 @@ function render() {
       '<div class="card-field"><span class="label">Schedule:</span>' + escapeHtml(s.at) + '</div>' +
       '<div class="card-field"><span class="label">Cron:</span><code>' + escapeHtml(s.cron) + '</code></div>' +
       '<div class="card-field"><span class="label">Dir:</span>' + escapeHtml(dir) + '</div>' +
-      (s.useGmail ? '<div class="card-field"><span class="gmail-badge">Gmail</span></div>' : '') +
+      ((s.useGmail || s.useSlack) ? '<div class="card-field">' + (s.useGmail ? '<span class="gmail-badge">Gmail</span> ' : '') + (s.useSlack ? '<span class="slack-badge">Slack</span>' : '') + '</div>' : '') +
       '<div class="card-prompt" onclick="viewPrompt(\\'' + escapeAttr(s.name) + '\\')">' + escapeHtml(s.prompt) + '</div>' +
+      '<a class="prompt-history-link" onclick="viewPromptHistory(\\'' + escapeAttr(s.name) + '\\')">Prompt History</a>' +
       '<div class="build-history">' +
         '<div class="build-history-header">' +
           '<span class="section-label">Build History</span>' +
@@ -1023,6 +1272,10 @@ function openAddModal() {
   cb.checked = false;
   cb.disabled = !gmailConnected;
   document.getElementById('addGmailHint').textContent = gmailConnected ? '' : '(Connect Gmail first)';
+  const scb = document.getElementById('addUseSlack');
+  scb.checked = false;
+  scb.disabled = !slackConnected;
+  document.getElementById('addSlackHint').textContent = slackConnected ? '' : '(Connect Slack first)';
   openModal('addModal');
 }
 
@@ -1048,6 +1301,7 @@ async function submitAdd() {
   const prompt = document.getElementById('addPrompt').value.trim();
   const dir = document.getElementById('addDir').value.trim();
   const useGmail = document.getElementById('addUseGmail').checked;
+  const useSlack = document.getElementById('addUseSlack').checked;
 
   if (!name || !at || !prompt) { alert('Name, schedule, and prompt are required.'); return; }
 
@@ -1058,7 +1312,7 @@ async function submitAdd() {
   try {
     await api('/api/schedules', {
       method: 'POST',
-      body: JSON.stringify({ name, at, prompt, dir: dir || undefined, useGmail }),
+      body: JSON.stringify({ name, at, prompt, dir: dir || undefined, useGmail, useSlack }),
     });
     closeModal('addModal');
     await loadSchedules();
@@ -1085,6 +1339,10 @@ function openEditModal(name) {
   cb.checked = !!s.useGmail;
   cb.disabled = !gmailConnected;
   document.getElementById('editGmailHint').textContent = gmailConnected ? '' : '(Connect Gmail first)';
+  const scb = document.getElementById('editUseSlack');
+  scb.checked = !!s.useSlack;
+  scb.disabled = !slackConnected;
+  document.getElementById('editSlackHint').textContent = slackConnected ? '' : '(Connect Slack first)';
   openModal('editModal');
 }
 
@@ -1110,6 +1368,7 @@ async function submitEdit() {
   const prompt = document.getElementById('editPrompt').value.trim();
   const dir = document.getElementById('editDir').value.trim();
   const useGmail = document.getElementById('editUseGmail').checked;
+  const useSlack = document.getElementById('editUseSlack').checked;
 
   if (!at || !prompt) { alert('Schedule and prompt are required.'); return; }
 
@@ -1120,7 +1379,7 @@ async function submitEdit() {
   try {
     await api('/api/schedules/' + encodeURIComponent(name), {
       method: 'PUT',
-      body: JSON.stringify({ at, prompt, dir: dir || undefined, useGmail }),
+      body: JSON.stringify({ at, prompt, dir: dir || undefined, useGmail, useSlack }),
     });
     closeModal('editModal');
     await loadSchedules();
@@ -1254,9 +1513,13 @@ async function cancelCurrentRun() {
 async function cancelRunByKey(name, number) {
   const key = name + ':' + number;
   const active = activeRuns[key];
-  if (!active) return;
   try {
-    await api('/api/runs/' + encodeURIComponent(active.runId) + '/cancel', { method: 'POST' });
+    if (active) {
+      await api('/api/runs/' + encodeURIComponent(active.runId) + '/cancel', { method: 'POST' });
+    } else {
+      await api('/api/schedules/' + encodeURIComponent(name) + '/runs/' + number + '/cancel', { method: 'POST' });
+    }
+    loadBuildHistory(name);
   } catch (err) {
     alert('Failed to cancel: ' + err.message);
   }
@@ -1349,7 +1612,7 @@ function closeModal(id) {
 }
 
 // Close modal on overlay click (except form modals)
-const formModals = new Set(['addModal', 'editModal', 'gmailModal']);
+const formModals = new Set(['addModal', 'editModal', 'gmailModal', 'slackModal']);
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay && !formModals.has(overlay.id)) {
@@ -1450,6 +1713,89 @@ async function disconnectGmail() {
   }
 }
 
+// Slack
+async function loadSlackStatus() {
+  try {
+    const data = await api('/api/slack/status');
+    slackConnected = data.connected;
+    slackChannel = data.channelName;
+    updateSlackUI();
+  } catch {
+    slackConnected = false;
+    slackChannel = null;
+    updateSlackUI();
+  }
+}
+
+function updateSlackUI() {
+  const statusEl = document.getElementById('slackStatus');
+  const btnEl = document.getElementById('slackBtn');
+  if (slackConnected) {
+    statusEl.innerHTML = '<span class="slack-dot connected"></span>' + escapeHtml(slackChannel || '');
+    btnEl.textContent = 'Slack Settings';
+  } else {
+    statusEl.innerHTML = '';
+    btnEl.textContent = 'Connect Slack';
+  }
+}
+
+function openSlackModal() {
+  if (slackConnected) {
+    document.getElementById('slackModalTitle').textContent = 'Slack Connected';
+    document.getElementById('slackFormSection').style.display = 'none';
+    document.getElementById('slackConnectedSection').style.display = 'block';
+    document.getElementById('slackConnectedChannel').textContent = slackChannel || '';
+  } else {
+    document.getElementById('slackModalTitle').textContent = 'Connect Slack';
+    document.getElementById('slackFormSection').style.display = 'block';
+    document.getElementById('slackConnectedSection').style.display = 'none';
+    document.getElementById('slackWebhookUrl').value = '';
+    document.getElementById('slackChannelName').value = '';
+  }
+  openModal('slackModal');
+}
+
+async function connectSlack() {
+  const webhookUrl = document.getElementById('slackWebhookUrl').value.trim();
+  const channelName = document.getElementById('slackChannelName').value.trim();
+  if (!webhookUrl) { alert('Webhook URL is required.'); return; }
+
+  const btn = document.getElementById('slackConnectBtn');
+  btn.disabled = true;
+  btn.textContent = 'Testing...';
+
+  try {
+    await api('/api/slack/connect', {
+      method: 'POST',
+      body: JSON.stringify({ webhookUrl, channelName: channelName || 'Slack' }),
+    });
+    closeModal('slackModal');
+    await loadSlackStatus();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test & Connect';
+  }
+}
+
+async function disconnectSlack() {
+  const btn = document.getElementById('slackDisconnectBtn');
+  btn.disabled = true;
+  btn.textContent = 'Disconnecting...';
+
+  try {
+    await api('/api/slack/disconnect', { method: 'DELETE' });
+    closeModal('slackModal');
+    await loadSlackStatus();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Disconnect';
+  }
+}
+
 // Directory autocomplete
 function setupDirAutocomplete(inputId, listId) {
   const input = document.getElementById(inputId);
@@ -1534,8 +1880,75 @@ async function fetchDirs(input, list) {
 setupDirAutocomplete('addDir', 'addDirList');
 setupDirAutocomplete('editDir', 'editDirList');
 
+// Prompt History
+async function viewPromptHistory(name) {
+  document.getElementById('promptHistoryTitle').textContent = 'Prompt History: ' + name;
+  document.getElementById('promptHistoryContent').innerHTML = '<div class="no-builds">Loading...</div>';
+  openModal('promptHistoryModal');
+
+  try {
+    const data = await api('/api/schedules/' + encodeURIComponent(name) + '/prompts?limit=50');
+    if (data.versions.length === 0) {
+      document.getElementById('promptHistoryContent').innerHTML = '<div class="no-builds">No prompt history yet.</div>';
+      return;
+    }
+
+    // Get current prompt from schedules array
+    const currentSchedule = schedules.find(s => s.name === name);
+    const currentPrompt = currentSchedule ? currentSchedule.prompt : '';
+
+    // versions are newest-first
+    const versions = data.versions;
+
+    let html = '<ul class="version-list">';
+    for (let i = 0; i < versions.length; i++) {
+      const v = versions[i];
+      const time = new Date(v.savedAt).toLocaleString();
+      // Compare this version to the next version (or current prompt if most recent)
+      const nextPrompt = i === 0 ? currentPrompt : versions[i - 1].prompt;
+      const diffHtml = renderDiff(v.prompt, nextPrompt);
+      const label = i === 0 ? '#' + v.number + ' → current' : '#' + v.number + ' → #' + versions[i - 1].number;
+
+      html += '<li class="version-item">' +
+        '<div class="version-meta">' +
+          '<span class="version-number">' + label + '</span>' +
+          '<span class="version-time">' + escapeHtml(time) + '</span>' +
+        '</div>' +
+        '<div class="version-prompt">' + diffHtml + '</div>' +
+        '<div class="version-actions">' +
+          '<button class="btn btn-sm" onclick="restorePromptVersion(\\'' + escapeAttr(name) + '\\',' + v.number + ')">Restore</button>' +
+        '</div>' +
+      '</li>';
+    }
+    html += '</ul>';
+    document.getElementById('promptHistoryContent').innerHTML = html;
+  } catch (err) {
+    document.getElementById('promptHistoryContent').innerHTML = '<div class="no-builds">Error: ' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function viewPromptHistoryFromEdit() {
+  const name = document.getElementById('promptEditName').value;
+  if (!name) return;
+  closeModal('promptModal');
+  viewPromptHistory(name);
+}
+
+async function restorePromptVersion(name, number) {
+  if (!confirm('Restore prompt version #' + number + '? The current prompt will be saved to history.')) return;
+
+  try {
+    await api('/api/schedules/' + encodeURIComponent(name) + '/prompts/' + number + '/restore', { method: 'POST' });
+    closeModal('promptHistoryModal');
+    await loadSchedules();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
 // Init
 loadGmailStatus();
+loadSlackStatus();
 loadSchedules();
 </script>
 </body>

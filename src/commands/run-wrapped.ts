@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import { getSchedule } from "../lib/config";
 import { createRun, completeRun, appendRunOutput } from "../lib/runs";
-import { isGmailConnected, getMcpConfigPath } from "../lib/gmail";
+import { shouldUseMcpConfig, getMcpConfigPath } from "../lib/mcp-config";
 
 function formatStreamLine(line: string): string {
   const ts = new Date().toISOString().slice(11, 19);
@@ -44,7 +44,7 @@ export function runWrappedCommand(name: string): void {
   delete env.CLAUDE_CODE_ENTRYPOINT;
 
   const args = ["--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"];
-  if (schedule.useGmail && isGmailConnected()) {
+  if (shouldUseMcpConfig(schedule)) {
     args.push("--mcp-config", getMcpConfigPath());
   }
   args.push("-p", schedule.prompt);
