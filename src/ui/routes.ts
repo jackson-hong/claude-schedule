@@ -8,7 +8,7 @@ import { writePlist, deletePlist } from "../lib/plist";
 import { load, unload } from "../lib/launchctl";
 import { plistPath, logPath } from "../lib/paths";
 import { Schedule } from "../types";
-import { startRun, getRun } from "./runner";
+import { startRun, getRun, cancelRun } from "./runner";
 import { getDashboardHtml } from "./html";
 import { listRuns, getRunRecord, getRunOutput, deleteRunHistory } from "../lib/runs";
 import { saveGmailConfig, loadGmailConfig, removeGmailConfig, isGmailConnected, testGmailConnection } from "../lib/gmail";
@@ -180,6 +180,19 @@ export async function handleRequest(
       return;
     }
 
+    // POST /api/runs/:runId/cancel — Cancel a running job
+    const cancelMatch = pathname.match(/^\/api\/runs\/([^/]+)\/cancel$/);
+    if (method === "POST" && cancelMatch) {
+      const runId = decodeURIComponent(cancelMatch[1]);
+      const cancelled = cancelRun(runId);
+      if (!cancelled) {
+        error(res, "Run not found or already completed.", 404);
+        return;
+      }
+      json(res, { ok: true });
+      return;
+    }
+
     // GET /api/schedules/:name/logs — Get logs
     const logsMatch = pathname.match(/^\/api\/schedules\/([^/]+)\/logs$/);
     if (method === "GET" && logsMatch) {
@@ -343,6 +356,39 @@ export async function handleRequest(
     if (method === "DELETE" && pathname === "/api/gmail/disconnect") {
       removeGmailConfig();
       json(res, { connected: false });
+      return;
+    }
+
+    // GET /api/dirs?prefix=... — List directories for autocomplete
+    if (method === "GET" && pathname === "/api/dirs") {
+      const prefix = url.searchParams.get("prefix") || "~/";
+      const resolved = prefix.replace(/^~/, os.homedir());
+
+      // Determine the parent directory and partial name to filter
+      let dir: string;
+      let partial: string;
+      if (resolved.endsWith("/")) {
+        dir = resolved;
+        partial = "";
+      } else {
+        dir = path.dirname(resolved);
+        partial = path.basename(resolved).toLowerCase();
+      }
+
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        const dirs = entries
+          .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+          .filter((e) => !partial || e.name.toLowerCase().startsWith(partial))
+          .slice(0, 20)
+          .map((e) => {
+            const full = path.join(dir, e.name);
+            return full.replace(os.homedir(), "~") + "/";
+          });
+        json(res, dirs);
+      } catch {
+        json(res, []);
+      }
       return;
     }
 

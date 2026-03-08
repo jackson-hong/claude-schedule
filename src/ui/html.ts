@@ -184,6 +184,7 @@ export function getDashboardHtml(): string {
 
   .build-list {
     list-style: none;
+    min-height: 130px;
   }
 
   .build-item {
@@ -208,11 +209,44 @@ export function getDashboardHtml(): string {
 
   .build-dot.success { background: #22c55e; }
   .build-dot.failure { background: #ef4444; }
-  .build-dot.running { background: #d4a574; animation: pulse 1s infinite; }
+  .build-dot.running { background: transparent; }
+
+  .spinner-sm {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid rgba(212, 165, 116, 0.3);
+    border-top-color: #d4a574;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .running-text {
+    color: #d4a574;
+    font-weight: 500;
+  }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
+  }
+
+  .build-cancel {
+    color: #525252;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .build-cancel:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
   }
 
   .build-number {
@@ -244,6 +278,9 @@ export function getDashboardHtml(): string {
     font-size: 12px;
     color: #525252;
     padding: 4px 0;
+    min-height: 130px;
+    display: flex;
+    align-items: center;
   }
 
   /* Modal */
@@ -339,6 +376,21 @@ export function getDashboardHtml(): string {
     overflow-y: auto;
     color: #d4d4d4;
   }
+
+  .log-line { margin: 0; }
+  .log-ts { color: #525252; }
+  .log-tag-thinking { color: #737373; font-style: italic; }
+  .log-tag-tool_use { color: #d4a574; font-weight: 600; }
+  .log-tag-tool_result { color: #8b8b8b; }
+  .log-tag-text { color: #22c55e; }
+  .log-tag-system { color: #60a5fa; }
+  .log-tag-error { color: #ef4444; font-weight: 600; }
+  .log-content-thinking { color: #8b8b8b; font-style: italic; }
+  .log-content-tool_use { color: #d4a574; }
+  .log-content-tool_result { color: #737373; }
+  .log-content-text { color: #e0e0e0; }
+  .log-content-system { color: #60a5fa; }
+  .log-content-error { color: #ef4444; }
 
   .run-status {
     margin-bottom: 12px;
@@ -445,6 +497,46 @@ export function getDashboardHtml(): string {
   .gmail-dot.connected { background: #22c55e; }
   .gmail-dot.disconnected { background: #ef4444; }
 
+  .autocomplete-wrap {
+    position: relative;
+  }
+
+  .autocomplete-list {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    z-index: 100;
+  }
+
+  .autocomplete-list.open {
+    display: block;
+  }
+
+  .autocomplete-list li {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'SF Mono', monospace;
+    color: #e0e0e0;
+  }
+
+  .autocomplete-list li:hover,
+  .autocomplete-list li.active {
+    background: #2a2a2a;
+    color: #d4a574;
+  }
+
   .form-group-inline {
     display: flex;
     align-items: center;
@@ -515,7 +607,10 @@ export function getDashboardHtml(): string {
     </div>
     <div class="form-group">
       <label for="addDir">Working Directory (optional)</label>
-      <input id="addDir" placeholder="~/Projects/my-app" />
+      <div class="autocomplete-wrap">
+        <input id="addDir" placeholder="~/Projects/my-app" autocomplete="off" />
+        <ul class="autocomplete-list" id="addDirList"></ul>
+      </div>
     </div>
     <div class="form-group-inline">
       <input type="checkbox" id="addUseGmail" />
@@ -550,7 +645,10 @@ export function getDashboardHtml(): string {
     </div>
     <div class="form-group">
       <label for="editDir">Working Directory</label>
-      <input id="editDir" placeholder="~/Projects/my-app" />
+      <div class="autocomplete-wrap">
+        <input id="editDir" placeholder="~/Projects/my-app" autocomplete="off" />
+        <ul class="autocomplete-list" id="editDirList"></ul>
+      </div>
     </div>
     <div class="form-group-inline">
       <input type="checkbox" id="editUseGmail" />
@@ -573,6 +671,7 @@ export function getDashboardHtml(): string {
     <div class="run-status running" id="runStatus"><span class="spinner"></span> Running...</div>
     <div class="run-output" id="runOutput"></div>
     <div class="modal-footer">
+      <button class="btn btn-danger" id="cancelRunBtn" onclick="cancelCurrentRun()">Cancel Run</button>
       <button class="btn" onclick="closeModal('runModal')">Close</button>
     </div>
   </div>
@@ -722,13 +821,21 @@ function renderBuildHistory(name, data) {
   let html = '<ul class="build-list">';
   for (const run of data.runs) {
     const time = formatTime(run.startedAt);
-    const dur = run.durationMs !== null ? formatDuration(run.durationMs) : '...';
-    html += '<li class="build-item" onclick="viewRunDetail(\\'' + escapeAttr(name) + '\\',' + run.number + ')">' +
-      '<span class="build-dot ' + run.status + '"></span>' +
+    const isRunning = run.status === 'running';
+    const dur = isRunning
+      ? formatDuration(Date.now() - new Date(run.startedAt).getTime())
+      : (run.durationMs !== null ? formatDuration(run.durationMs) : '...');
+    const clickFn = isRunning ? 'openLiveOutput' : 'viewRunDetail';
+    const cancelBtn = isRunning
+      ? '<span class="build-cancel" onclick="event.stopPropagation();cancelRunByKey(\\'' + escapeAttr(name) + '\\',' + run.number + ')" title="Cancel">✕</span>'
+      : '';
+    html += '<li class="build-item" onclick="' + clickFn + '(\\'' + escapeAttr(name) + '\\',' + run.number + ')">' +
+      (isRunning ? '<span class="build-dot running"><span class="spinner-sm"></span></span>' : '<span class="build-dot ' + run.status + '"></span>') +
       '<span class="build-number">#' + run.number + '</span>' +
       '<span class="build-trigger">' + run.trigger + '</span>' +
       '<span class="build-time">' + escapeHtml(time) + '</span>' +
-      '<span class="build-duration">' + escapeHtml(dur) + '</span>' +
+      '<span class="build-duration">' + (isRunning ? '<span class="running-text">' + escapeHtml(dur) + '</span>' : escapeHtml(dur)) + '</span>' +
+      cancelBtn +
     '</li>';
   }
   html += '</ul>';
@@ -814,6 +921,26 @@ function escapeAttr(s) {
 }
 
 // Run Detail
+function colorizeLog(raw) {
+  if (!raw) return '';
+  const lines = raw.split('\\n');
+  return lines.map(line => {
+    // Match: HH:MM:SS [type]         (optional tool) content
+    const m = line.match(/^(\\d{2}:\\d{2}:\\d{2})\\s+\\[(\\w+)\\]\\s+(.*)/);
+    if (!m) return '<div class="log-line">' + escapeHtml(line) + '</div>';
+
+    const ts = m[1];
+    const type = m[2];
+    const rest = m[3];
+
+    return '<div class="log-line">' +
+      '<span class="log-ts">' + ts + '</span> ' +
+      '<span class="log-tag-' + type + '">[' + type + ']</span> ' +
+      '<span class="log-content-' + type + '">' + escapeHtml(rest) + '</span>' +
+    '</div>';
+  }).join('');
+}
+
 async function viewRunDetail(name, number) {
   // If this is an active run, show live output instead
   const key = name + ':' + number;
@@ -843,8 +970,8 @@ async function viewRunDetail(name, number) {
       '<dt>Duration</dt><dd>' + escapeHtml(dur) + '</dd>' +
       '<dt>Exit Code</dt><dd>' + (meta.exitCode !== null ? meta.exitCode : '-') + '</dd>';
 
-    document.getElementById('runDetailOutput').textContent = outputData.output || '(no output)';
     const outputEl = document.getElementById('runDetailOutput');
+    outputEl.innerHTML = colorizeLog(outputData.output || '(no output)');
     outputEl.scrollTop = outputEl.scrollHeight;
   } catch (err) {
     document.getElementById('runDetailMeta').innerHTML = '';
@@ -1008,6 +1135,8 @@ async function submitEdit() {
 // Run — Jenkins-style: no modal, update build history inline
 let activeRuns = {}; // 'name:number' -> { runId }
 let liveEs = null;   // EventSource for live output modal
+let pollTimer = null; // polling timer for active runs
+let currentLiveRunKey = null; // 'name:number' of the run shown in live modal
 
 async function runSchedule(name) {
   try {
@@ -1017,6 +1146,7 @@ async function runSchedule(name) {
 
     // Refresh build history to show running state immediately
     loadBuildHistory(name);
+    startPolling();
 
     // Background SSE to detect completion
     const es = new EventSource('/api/runs/' + encodeURIComponent(data.runId) + '/stream');
@@ -1024,14 +1154,36 @@ async function runSchedule(name) {
       es.close();
       delete activeRuns[key];
       loadBuildHistory(name);
+      stopPollingIfIdle();
     });
     es.onerror = () => {
       es.close();
       delete activeRuns[key];
       setTimeout(() => loadBuildHistory(name), 500);
+      stopPollingIfIdle();
     };
   } catch (err) {
     alert('Failed to start: ' + err.message);
+  }
+}
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(() => {
+    const names = new Set();
+    for (const key of Object.keys(activeRuns)) {
+      names.add(key.split(':')[0]);
+    }
+    for (const name of names) {
+      loadBuildHistory(name);
+    }
+  }, 3000);
+}
+
+function stopPollingIfIdle() {
+  if (Object.keys(activeRuns).length === 0 && pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
   }
 }
 
@@ -1040,10 +1192,12 @@ function openLiveOutput(name, number) {
   const active = activeRuns[key];
   if (!active) { viewRunDetail(name, number); return; }
 
+  currentLiveRunKey = key;
   document.getElementById('runTitle').textContent = name + ' #' + number;
   document.getElementById('runStatus').innerHTML = '<span class="spinner"></span> Running...';
   document.getElementById('runStatus').className = 'run-status running';
-  document.getElementById('runOutput').textContent = '';
+  document.getElementById('runOutput').innerHTML = '';
+  document.getElementById('cancelRunBtn').style.display = '';
   openModal('runModal');
 
   if (liveEs) { liveEs.close(); liveEs = null; }
@@ -1053,13 +1207,16 @@ function openLiveOutput(name, number) {
   const output = document.getElementById('runOutput');
 
   es.onmessage = (e) => {
-    output.textContent += JSON.parse(e.data);
+    const text = JSON.parse(e.data);
+    output.innerHTML += colorizeLog(text);
     output.scrollTop = output.scrollHeight;
   };
 
   es.addEventListener('done', (e) => {
     es.close();
     if (liveEs === es) liveEs = null;
+    currentLiveRunKey = null;
+    document.getElementById('cancelRunBtn').style.display = 'none';
     const info = JSON.parse(e.data);
     const code = info.code ?? 0;
     if (code === 0) {
@@ -1074,9 +1231,35 @@ function openLiveOutput(name, number) {
   es.onerror = () => {
     es.close();
     if (liveEs === es) liveEs = null;
+    currentLiveRunKey = null;
+    document.getElementById('cancelRunBtn').style.display = 'none';
     document.getElementById('runStatus').textContent = 'Connection lost.';
     document.getElementById('runStatus').className = 'run-status failed';
   };
+}
+
+async function cancelCurrentRun() {
+  if (!currentLiveRunKey || !activeRuns[currentLiveRunKey]) return;
+  const runId = activeRuns[currentLiveRunKey].runId;
+  try {
+    await api('/api/runs/' + encodeURIComponent(runId) + '/cancel', { method: 'POST' });
+    document.getElementById('cancelRunBtn').style.display = 'none';
+    document.getElementById('runStatus').textContent = 'Cancelling...';
+    document.getElementById('runStatus').className = 'run-status failed';
+  } catch (err) {
+    alert('Failed to cancel: ' + err.message);
+  }
+}
+
+async function cancelRunByKey(name, number) {
+  const key = name + ':' + number;
+  const active = activeRuns[key];
+  if (!active) return;
+  try {
+    await api('/api/runs/' + encodeURIComponent(active.runId) + '/cancel', { method: 'POST' });
+  } catch (err) {
+    alert('Failed to cancel: ' + err.message);
+  }
 }
 
 // Prompt Edit
@@ -1165,10 +1348,11 @@ function closeModal(id) {
   if (id === 'runModal' && liveEs) { liveEs.close(); liveEs = null; }
 }
 
-// Close modal on overlay click
+// Close modal on overlay click (except form modals)
+const formModals = new Set(['addModal', 'editModal', 'gmailModal']);
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
+    if (e.target === overlay && !formModals.has(overlay.id)) {
       if (overlay.id === 'runModal' && liveEs) { liveEs.close(); liveEs = null; }
       overlay.classList.remove('active');
     }
@@ -1265,6 +1449,90 @@ async function disconnectGmail() {
     btn.textContent = 'Disconnect';
   }
 }
+
+// Directory autocomplete
+function setupDirAutocomplete(inputId, listId) {
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(listId);
+  let debounceTimer = null;
+  let activeIndex = -1;
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => fetchDirs(input, list), 200);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const items = list.querySelectorAll('li');
+    if (!list.classList.contains('open') || items.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, items.length - 1);
+      updateActive(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      updateActive(items);
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      selectItem(input, list, items[activeIndex].textContent);
+    } else if (e.key === 'Tab' && activeIndex >= 0) {
+      e.preventDefault();
+      selectItem(input, list, items[activeIndex].textContent);
+    } else if (e.key === 'Escape') {
+      list.classList.remove('open');
+      activeIndex = -1;
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !list.contains(e.target)) {
+      list.classList.remove('open');
+      activeIndex = -1;
+    }
+  });
+
+  function updateActive(items) {
+    items.forEach((li, i) => li.classList.toggle('active', i === activeIndex));
+    if (items[activeIndex]) items[activeIndex].scrollIntoView({ block: 'nearest' });
+  }
+
+  function selectItem(input, list, value) {
+    input.value = value;
+    list.classList.remove('open');
+    activeIndex = -1;
+    // Trigger another fetch to show subdirectories
+    setTimeout(() => fetchDirs(input, list), 50);
+  }
+}
+
+async function fetchDirs(input, list) {
+  const val = input.value.trim();
+  if (!val) { list.classList.remove('open'); return; }
+
+  try {
+    const dirs = await api('/api/dirs?prefix=' + encodeURIComponent(val));
+    if (dirs.length === 0) { list.classList.remove('open'); return; }
+
+    list.innerHTML = dirs.map(d => '<li>' + escapeHtml(d) + '</li>').join('');
+    list.classList.add('open');
+
+    list.querySelectorAll('li').forEach(li => {
+      li.addEventListener('click', () => {
+        input.value = li.textContent;
+        list.classList.remove('open');
+        input.focus();
+        setTimeout(() => fetchDirs(input, list), 50);
+      });
+    });
+  } catch {
+    list.classList.remove('open');
+  }
+}
+
+setupDirAutocomplete('addDir', 'addDirList');
+setupDirAutocomplete('editDir', 'editDirList');
 
 // Init
 loadGmailStatus();

@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 
-const CRON_REGEX = /\b(\S+\s+\S+\s+\S+\s+\S+\s+\S+)\b/;
+const CRON_REGEX = /(?:^|[\s`])(\*(?:\/\d+)?|[\d,\-\/]+)(?:\s+)(\*(?:\/\d+)?|[\d,\-\/]+)(?:\s+)(\*(?:\/\d+)?|[\d,\-\/]+)(?:\s+)(\*(?:\/\d+)?|[\d,\-\/]+)(?:\s+)(\*(?:\/\d+)?|[\d,\-\/\w]+)(?:$|[\s`])/m;
 
 export function parseNaturalLanguageToCron(input: string): string {
   const prompt = `다음 자연어 스케줄을 크론 표현식으로 변환해. 크론 표현식만 출력해. 다른 설명 없이.\n입력: "${input}"`;
@@ -22,7 +22,7 @@ export function parseNaturalLanguageToCron(input: string): string {
     );
   }
 
-  const cron = match[1];
+  const cron = `${match[1]} ${match[2]} ${match[3]} ${match[4]} ${match[5]}`;
   validateCronFields(cron);
   return cron;
 }
