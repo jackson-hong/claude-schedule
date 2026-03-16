@@ -304,6 +304,7 @@ export function getDashboardHtml(): string {
     max-width: 560px;
     max-height: 85vh;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 24px;
   }
 
@@ -688,6 +689,281 @@ export function getDashboardHtml(): string {
   }
 
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Tab Navigation */
+  .tab-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #262626;
+    padding: 0 24px;
+    background: #0a0a0a;
+  }
+
+  .tab-btn {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #737373;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .tab-btn:hover { color: #e5e5e5; }
+  .tab-btn.active { color: #d4a574; border-bottom-color: #d4a574; }
+
+  .tab-btn .badge {
+    display: inline-block;
+    background: #22c55e;
+    color: #0a0a0a;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  .tab-btn .badge.zero { background: #404040; color: #737373; }
+
+  /* Console */
+  .console-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .console-toolbar .section-label { font-size: 14px; }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  .status-dot.active { background: #22c55e; box-shadow: 0 0 6px #22c55e80; }
+  .status-dot.idle { background: #eab308; }
+  .status-dot.ended { background: #525252; }
+
+  /* Session Group */
+  .session-group {
+    margin-bottom: 20px;
+  }
+
+  .session-group-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: #737373;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .session-group-header:hover { color: #a3a3a3; }
+
+  .session-group-header .group-count {
+    font-weight: 400;
+    color: #525252;
+  }
+
+  .session-group-header .chevron {
+    font-size: 10px;
+    transition: transform 0.15s;
+    color: #525252;
+  }
+
+  .session-group-header .chevron.collapsed {
+    transform: rotate(-90deg);
+  }
+
+  /* Session Table */
+  .session-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #141414;
+    border: 1px solid #262626;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .session-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 500;
+    color: #525252;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #262626;
+    background: #0f0f0f;
+  }
+
+  .session-table td {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid #1e1e1e;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .session-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .session-table tr {
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .session-table tbody tr:hover {
+    background: #1a1a1a;
+  }
+
+  /* Active row left accent */
+  .session-row-active td:first-child {
+    box-shadow: inset 3px 0 0 #22c55e;
+  }
+
+  .session-row-idle td:first-child {
+    box-shadow: inset 3px 0 0 #eab308;
+  }
+
+  .session-title-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .session-title-text {
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 240px;
+  }
+
+  .session-model-badge {
+    font-size: 10px;
+    color: #737373;
+    background: #1a1a1a;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .session-dir-cell {
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 12px;
+    color: #a3a3a3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+  }
+
+  .session-summary-cell {
+    color: #737373;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+  }
+
+  .session-count-cell {
+    text-align: center;
+    color: #a3a3a3;
+    font-size: 12px;
+  }
+
+  .session-time-cell {
+    color: #525252;
+    font-size: 12px;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .btn-dismiss {
+    background: none;
+    border: none;
+    color: #525252;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .btn-dismiss:hover {
+    color: #ef4444;
+    background: #1c0a0a;
+  }
+
+  .session-detail-prompts {
+    list-style: none;
+    max-height: 340px;
+    overflow-y: auto;
+  }
+
+  .session-detail-prompts li {
+    padding: 10px 12px;
+    border: 1px solid #262626;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    background: #1a1a1a;
+  }
+
+  .session-detail-prompts li .prompt-time {
+    font-size: 11px;
+    color: #525252;
+    margin-bottom: 4px;
+  }
+
+  .session-detail-prompts li .prompt-text {
+    font-size: 13px;
+    color: #d4d4d4;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  .session-last-response {
+    background: #1a1a1a;
+    border: 1px solid #262626;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #a3a3a3;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .console-empty {
+    text-align: center;
+    padding: 64px 24px;
+    color: #525252;
+  }
+
+  .console-empty p { margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -703,8 +979,18 @@ export function getDashboardHtml(): string {
   </div>
 </header>
 
+<nav class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('schedules')">Schedules</button>
+  <button class="tab-btn" onclick="switchTab('console')">Console <span class="badge zero" id="activeSessionBadge">0</span></button>
+</nav>
+
 <main>
-  <div id="content"></div>
+  <div id="tab-schedules" class="tab-panel">
+    <div id="content"></div>
+  </div>
+  <div id="tab-console" class="tab-panel" style="display:none;">
+    <div id="console-content"></div>
+  </div>
 </main>
 
 <!-- Add Schedule Modal -->
@@ -929,6 +1215,27 @@ export function getDashboardHtml(): string {
         <button class="btn" onclick="closeModal('slackModal')">Close</button>
         <button class="btn btn-danger" id="slackDisconnectBtn" onclick="disconnectSlack()">Disconnect</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Session Detail Modal -->
+<div class="modal-overlay" id="sessionDetailModal">
+  <div class="modal modal-lg">
+    <h2 id="sessionDetailTitle">Session Detail</h2>
+    <div id="sessionDetailMeta"></div>
+    <div id="sessionDetailBody"></div>
+    <div id="resumeCmdWrap" style="background:#0f0f0f;border:1px solid #262626;border-radius:6px;padding:8px 12px;margin-top:16px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="min-width:0;flex:1;overflow:hidden;">
+          <code style="font-size:12px;color:#a3a3a3;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="resumeCmdText"></code>
+        </div>
+        <button class="btn btn-sm" onclick="copyResumeCmd()" id="copyResumeBtn" style="flex-shrink:0;">복사</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="resumeBtn" onclick="resumeSession()" style="margin-right:auto;">Resume in Terminal</button>
+      <button class="btn" onclick="closeModal('sessionDetailModal')">Close</button>
     </div>
   </div>
 </div>
@@ -1941,6 +2248,341 @@ async function restorePromptVersion(name, number) {
     await api('/api/schedules/' + encodeURIComponent(name) + '/prompts/' + number + '/restore', { method: 'POST' });
     closeModal('promptHistoryModal');
     await loadSchedules();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+// ── Tab Navigation ──
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = '';
+  event.target.closest ? document.querySelector('.tab-btn[onclick*="' + tab + '"]').classList.add('active') : null;
+  if (tab === 'console') initConsole();
+}
+
+// ── Console ──
+let consoleSessions = [];
+const hiddenSessions = new Set();
+const collapsedGroups = new Set(['ended']);
+let consoleEs = null;
+let consoleInitialized = false;
+
+function initConsole() {
+  if (!consoleInitialized) {
+    consoleInitialized = true;
+    connectConsoleStream();
+  }
+}
+
+function connectConsoleStream() {
+  if (consoleEs) consoleEs.close();
+  consoleEs = new EventSource('/api/console/stream');
+
+  consoleEs.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'init') {
+      consoleSessions = msg.sessions;
+    } else if (msg.type === 'update') {
+      const idx = consoleSessions.findIndex(s => s.sessionId === msg.session.sessionId);
+      if (idx >= 0) consoleSessions[idx] = msg.session;
+      else consoleSessions.unshift(msg.session);
+      // 최근 활동 순 정렬
+      consoleSessions.sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
+    }
+    renderConsole();
+    updateSessionBadge();
+  };
+
+  consoleEs.onerror = () => {
+    // 재연결은 EventSource가 자동으로 처리
+  };
+}
+
+function updateSessionBadge() {
+  const active = consoleSessions.filter(s => !hiddenSessions.has(s.sessionId) && (s.status === 'active' || s.status === 'idle')).length;
+  const badge = document.getElementById('activeSessionBadge');
+  badge.textContent = active;
+  badge.className = 'badge' + (active === 0 ? ' zero' : '');
+}
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return sec + '초 전';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min + '분 전';
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr + '시간 전';
+  const d = Math.floor(hr / 24);
+  return d + '일 전';
+}
+
+function shortSessionId(id) {
+  if (!id) return '—';
+  return id.length > 12 ? id.slice(0, 8) + '...' : id;
+}
+
+function shortenPath(p) {
+  if (!p) return '—';
+  const home = '~';
+  // 서버에서 이미 full path로 올 수 있으므로 표시용으로 축약
+  return p.replace(/^\\/Users\\/[^/]+/, home);
+}
+
+function renderConsole() {
+  const el = document.getElementById('console-content');
+  if (consoleSessions.length === 0) {
+    el.innerHTML = '<div class="console-empty"><p>활성 세션 없음</p><p style="font-size:13px;">Claude Code를 실행하면 여기에 표시됩니다.<br><code style="color:#d4a574;">claude-schedule setup-hooks</code>로 hook을 먼저 설정하세요.</p></div>';
+    return;
+  }
+
+  // 그룹 분류 (숨긴 세션 제외)
+  const visible = consoleSessions.filter(s => !hiddenSessions.has(s.sessionId));
+  if (visible.length === 0) {
+    el.innerHTML = '<div class="console-empty"><p>활성 세션 없음</p><p style="font-size:13px;">Claude Code를 실행하면 여기에 표시됩니다.<br><code style="color:#d4a574;">claude-schedule setup-hooks</code>로 hook을 먼저 설정하세요.</p></div>';
+    return;
+  }
+  const groups = { active: [], idle: [], ended: [] };
+  for (const s of visible) {
+    (groups[s.status] || groups.ended).push(s);
+  }
+
+  const groupLabels = {
+    active: '활성',
+    idle: '대기',
+    ended: '종료',
+  };
+
+  let html = '<div class="console-toolbar">' +
+    '<span class="section-label">Sessions (' + consoleSessions.length + ')</span>' +
+    '<button class="btn btn-sm btn-danger" onclick="clearConsoleSessions()">Clear All</button>' +
+    '</div>';
+
+  for (const key of ['active', 'idle', 'ended']) {
+    const list = groups[key];
+    if (list.length === 0) continue;
+
+    const isCollapsed = collapsedGroups.has(key);
+
+    html += '<div class="session-group">' +
+      '<div class="session-group-header" onclick="toggleGroup(\\'' + key + '\\')">' +
+        '<span class="chevron' + (isCollapsed ? ' collapsed' : '') + '">&#9660;</span>' +
+        '<span class="status-dot ' + key + '"></span> ' +
+        groupLabels[key] +
+        ' <span class="group-count">(' + list.length + ')</span>' +
+      '</div>';
+
+    if (isCollapsed) {
+      html += '</div>';
+      continue;
+    }
+
+    html += '<table class="session-table">' +
+      '<colgroup><col style="width:22%"><col style="width:22%"><col style="width:32%"><col style="width:8%"><col style="width:12%"><col style="width:4%"></colgroup>' +
+      '<thead><tr>' +
+        '<th>제목</th>' +
+        '<th>디렉토리</th>' +
+        '<th>요약</th>' +
+        '<th style="text-align:center">프롬프트</th>' +
+        '<th style="text-align:right">활동</th>' +
+        '<th></th>' +
+      '</tr></thead><tbody>';
+
+    for (const s of list) {
+      const displayName = s.title || shortSessionId(s.sessionId);
+      const desc = s.summary || (s.prompts && s.prompts.length > 0 ? s.prompts[s.prompts.length - 1].prompt : '');
+
+      html += '<tr class="session-row-' + s.status + '">' +
+        '<td onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')"><div class="session-title-cell">' +
+          '<span class="session-title-text" title="' + escapeAttr(displayName) + '">' + escapeHtml(displayName) + '</span>' +
+        '</div></td>' +
+        '<td onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')"><span class="session-dir-cell" title="' + escapeAttr(s.cwd) + '">' + escapeHtml(shortenPath(s.cwd)) + '</span></td>' +
+        '<td onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')"><span class="session-summary-cell" title="' + escapeAttr(desc) + '">' + escapeHtml(desc) + '</span></td>' +
+        '<td class="session-count-cell" onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')">' + (s.prompts ? s.prompts.length : 0) + '</td>' +
+        '<td class="session-time-cell" onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')">' + timeAgo(s.lastActivityAt) + '</td>' +
+        '<td style="text-align:center;padding:8px 4px;"><button class="btn-dismiss" onclick="dismissSession(\\'' + escapeAttr(s.sessionId) + '\\')" title="숨기기">&times;</button></td>' +
+      '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+  }
+
+  el.innerHTML = html;
+}
+
+async function openSessionDetail(sessionId) {
+  let session;
+  try {
+    session = await api('/api/console/sessions/' + encodeURIComponent(sessionId));
+  } catch {
+    alert('세션을 불러올 수 없습니다.');
+    return;
+  }
+
+  const modal = document.getElementById('sessionDetailModal');
+  const displayTitle = session.title || shortSessionId(session.sessionId);
+  document.getElementById('sessionDetailTitle').innerHTML =
+    '<span class="status-dot ' + session.status + '" style="display:inline-block;vertical-align:middle;margin-right:8px;"></span>' +
+    escapeHtml(displayTitle) +
+    '<span style="font-size:13px;color:#737373;margin-left:12px;">' + session.status + '</span>';
+
+  // 세션 ID를 모달에 저장 (재요약용)
+  modal.dataset.sessionId = session.sessionId;
+
+  let meta = '<div style="font-size:13px;color:#a3a3a3;margin-bottom:16px;">' +
+    '<div><span style="color:#525252;">세션:</span> <span style="font-family:monospace;font-size:11px;">' + escapeHtml(session.sessionId) + '</span></div>' +
+    '<div><span style="color:#525252;">디렉토리:</span> ' + escapeHtml(shortenPath(session.cwd)) + '</div>' +
+    (session.model ? '<div><span style="color:#525252;">모델:</span> ' + escapeHtml(session.model) + '</div>' : '') +
+    '<div><span style="color:#525252;">시작:</span> ' + new Date(session.startedAt).toLocaleString('ko-KR') + '</div>' +
+    '<div><span style="color:#525252;">마지막 활동:</span> ' + timeAgo(session.lastActivityAt) + '</div>' +
+    (session.endReason ? '<div><span style="color:#525252;">종료 사유:</span> ' + escapeHtml(session.endReason) + '</div>' : '') +
+    '</div>';
+
+  document.getElementById('sessionDetailMeta').innerHTML = meta;
+
+  // resume 커맨드 텍스트 업데이트
+  const resumeCmd = 'cd ' + session.cwd + ' && claude --resume ' + session.sessionId;
+  document.getElementById('resumeCmdText').textContent = resumeCmd;
+
+  // 요약 영역
+  let summaryHtml = '<div style="margin-bottom:16px;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+      '<span class="section-label">요약</span>' +
+      '<button class="btn btn-sm" id="summarizeBtn" data-old-title="' + escapeAttr(session.title || '') + '" onclick="requestSummarize()">' + (session.title ? '재요약' : '요약 생성') + '</button>' +
+    '</div>';
+  if (session.summary) {
+    summaryHtml += '<div style="background:#1a1a1a;border:1px solid #262626;border-radius:6px;padding:10px 12px;font-size:13px;line-height:1.8;color:#d4d4d4;white-space:pre-wrap;word-break:break-word;">' +
+      escapeHtml(session.summary) + '</div>';
+  } else {
+    summaryHtml += '<div style="color:#525252;font-size:13px;">아직 요약이 생성되지 않았습니다.</div>';
+  }
+  summaryHtml += '</div>';
+
+  // 프롬프트 목록
+  let promptsHtml = '';
+  if (session.prompts && session.prompts.length > 0) {
+    promptsHtml = '<div class="section-label" style="margin-bottom:8px;">프롬프트 히스토리 (' + session.prompts.length + ')</div>' +
+      '<ul class="session-detail-prompts">';
+    for (const p of session.prompts) {
+      promptsHtml += '<li>' +
+        '<div class="prompt-time">' + new Date(p.submittedAt).toLocaleString('ko-KR') + '</div>' +
+        '<div class="prompt-text">' + escapeHtml(p.prompt) + '</div>' +
+        '</li>';
+    }
+    promptsHtml += '</ul>';
+  }
+
+  // 마지막 응답
+  let responseHtml = '';
+  if (session.lastAssistantMessage) {
+    const msg = session.lastAssistantMessage.length > 2000
+      ? session.lastAssistantMessage.slice(0, 2000) + '...'
+      : session.lastAssistantMessage;
+    responseHtml = '<div class="section-label" style="margin:16px 0 8px;">마지막 응답</div>' +
+      '<div class="session-last-response">' + escapeHtml(msg) + '</div>';
+  }
+
+  document.getElementById('sessionDetailBody').innerHTML = summaryHtml + promptsHtml + responseHtml;
+
+  // ended 세션은 Resume 숨김
+  const resumeBtn = document.getElementById('resumeBtn');
+  const isEnded = session.status === 'ended';
+  resumeBtn.style.display = isEnded ? 'none' : '';
+  document.getElementById('resumeCmdWrap').style.display = isEnded ? 'none' : '';
+
+  modal.classList.add('active');
+}
+
+async function resumeSession() {
+  const modal = document.getElementById('sessionDetailModal');
+  const sessionId = modal.dataset.sessionId;
+  if (!sessionId) return;
+
+  const btn = document.getElementById('resumeBtn');
+  btn.textContent = '터미널 열는 중...';
+  btn.disabled = true;
+
+  try {
+    await api('/api/console/sessions/' + encodeURIComponent(sessionId) + '/resume', { method: 'POST' });
+    btn.textContent = 'Resume in Terminal';
+    btn.disabled = false;
+    closeModal('sessionDetailModal');
+  } catch (err) {
+    btn.textContent = 'Resume in Terminal';
+    btn.disabled = false;
+    alert('Error: ' + err.message);
+  }
+}
+
+function copyResumeCmd() {
+  const text = document.getElementById('resumeCmdText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyResumeBtn');
+    btn.textContent = '복사됨';
+    setTimeout(() => { btn.textContent = '복사'; }, 1500);
+  });
+}
+
+async function requestSummarize() {
+  const modal = document.getElementById('sessionDetailModal');
+  const sessionId = modal.dataset.sessionId;
+  if (!sessionId) return;
+
+  const btn = document.getElementById('summarizeBtn');
+  const oldTitle = btn.getAttribute('data-old-title') || '';
+  btn.textContent = '생성 중...';
+  btn.disabled = true;
+
+  try {
+    await api('/api/console/sessions/' + encodeURIComponent(sessionId) + '/summarize', { method: 'POST' });
+    // 요약은 백그라운드에서 실행됨. 폴링으로 결과 확인
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const updated = await api('/api/console/sessions/' + encodeURIComponent(sessionId));
+        // 새 title이 생겼거나(기존과 다르면) 타임아웃이면 종료
+        if ((updated.title && updated.title !== oldTitle) || attempts >= 15) {
+          clearInterval(poll);
+          openSessionDetail(sessionId);
+        }
+      } catch {
+        clearInterval(poll);
+        btn.textContent = '요약 실패';
+        btn.disabled = false;
+      }
+    }, 2000);
+  } catch (err) {
+    btn.textContent = '요약 실패';
+    btn.disabled = false;
+    alert('Error: ' + err.message);
+  }
+}
+
+function toggleGroup(key) {
+  if (collapsedGroups.has(key)) {
+    collapsedGroups.delete(key);
+  } else {
+    collapsedGroups.add(key);
+  }
+  renderConsole();
+}
+
+function dismissSession(sessionId) {
+  hiddenSessions.add(sessionId);
+  renderConsole();
+  updateSessionBadge();
+}
+
+async function clearConsoleSessions() {
+  if (!confirm('모든 세션 데이터를 삭제하시겠습니까?')) return;
+  try {
+    await api('/api/console/sessions', { method: 'DELETE' });
+    consoleSessions = [];
+    renderConsole();
+    updateSessionBadge();
   } catch (err) {
     alert('Error: ' + err.message);
   }

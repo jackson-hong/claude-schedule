@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from "http";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { execSync, spawn } from "child_process";
 import { loadSchedules, getSchedule, addSchedule, updateSchedule, removeSchedule } from "../lib/config";
 import { parseNaturalLanguageToCron } from "../lib/parser";
 import { writePlist, deletePlist } from "../lib/plist";
@@ -14,6 +15,7 @@ import { listRuns, getRunRecord, getRunOutput, deleteRunHistory } from "../lib/r
 import { savePromptVersion, listPromptVersions, getPromptVersion, deletePromptHistory } from "../lib/prompt-history";
 import { saveGmailConfig, loadGmailConfig, removeGmailConfig, isGmailConnected, testGmailConnection } from "../lib/gmail";
 import { saveSlackConfig, loadSlackConfig, removeSlackConfig, isSlackConnected, testWebhook } from "../lib/slack";
+import { getAllSessions, getSession, clearSessions, onUpdate, startWatching } from "../lib/console-store";
 
 function json(res: ServerResponse, data: unknown, status = 200): void {
   res.writeHead(status, { "Content-Type": "application/json" });
@@ -494,6 +496,101 @@ export async function handleRequest(
       } catch {
         json(res, []);
       }
+      return;
+    }
+
+    // GET /api/console/sessions — List all console sessions
+    if (method === "GET" && pathname === "/api/console/sessions") {
+      json(res, getAllSessions());
+      return;
+    }
+
+    // GET /api/console/sessions/:id — Single session detail
+    const consoleSessionMatch = pathname.match(/^\/api\/console\/sessions\/([^/]+)$/);
+    if (method === "GET" && consoleSessionMatch) {
+      const sessionId = decodeURIComponent(consoleSessionMatch[1]);
+      const session = getSession(sessionId);
+      if (!session) {
+        error(res, `Session "${sessionId}" not found.`, 404);
+        return;
+      }
+      json(res, session);
+      return;
+    }
+
+    // DELETE /api/console/sessions — Clear all sessions
+    if (method === "DELETE" && pathname === "/api/console/sessions") {
+      clearSessions();
+      json(res, { ok: true });
+      return;
+    }
+
+    // POST /api/console/sessions/:id/summarize — Manually trigger summarization
+    const consoleSummarizeMatch = pathname.match(/^\/api\/console\/sessions\/([^/]+)\/summarize$/);
+    if (method === "POST" && consoleSummarizeMatch) {
+      const sessionId = decodeURIComponent(consoleSummarizeMatch[1]);
+      const session = getSession(sessionId);
+      if (!session) {
+        error(res, `Session "${sessionId}" not found.`, 404);
+        return;
+      }
+
+      try {
+        const bin = execSync("which claude-schedule", { encoding: "utf-8" }).trim();
+        const child = spawn(bin, ["_console-summarize", sessionId], {
+          stdio: "ignore",
+          detached: true,
+        });
+        child.unref();
+        json(res, { ok: true, message: "Summarization started" });
+      } catch {
+        error(res, "Failed to start summarization", 500);
+      }
+      return;
+    }
+
+    // POST /api/console/sessions/:id/resume — Open terminal and resume session
+    const consoleResumeMatch = pathname.match(/^\/api\/console\/sessions\/([^/]+)\/resume$/);
+    if (method === "POST" && consoleResumeMatch) {
+      const sessionId = decodeURIComponent(consoleResumeMatch[1]);
+      const session = getSession(sessionId);
+      if (!session) {
+        error(res, `Session "${sessionId}" not found.`, 404);
+        return;
+      }
+
+      try {
+        const tmpFile = path.join(os.tmpdir(), `claude-resume-${Date.now()}.command`);
+        const script = `#!/bin/bash\ncd ${JSON.stringify(session.cwd)} && claude --resume ${JSON.stringify(sessionId)}\nrm -f ${JSON.stringify(tmpFile)}\n`;
+        fs.writeFileSync(tmpFile, script, { mode: 0o755 });
+        execSync(`open ${JSON.stringify(tmpFile)}`, { stdio: "ignore" });
+        json(res, { ok: true });
+      } catch {
+        error(res, "Failed to open terminal", 500);
+      }
+      return;
+    }
+
+    // GET /api/console/stream — SSE for console session updates
+    if (method === "GET" && pathname === "/api/console/stream") {
+      startWatching();
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      });
+
+      // 초기 전체 세션 전송
+      const sessions = getAllSessions();
+      res.write(`data: ${JSON.stringify({ type: "init", sessions })}\n\n`);
+
+      const unsubscribe = onUpdate((session) => {
+        res.write(`data: ${JSON.stringify({ type: "update", session })}\n\n`);
+      });
+
+      req.on("close", () => {
+        unsubscribe();
+      });
       return;
     }
 

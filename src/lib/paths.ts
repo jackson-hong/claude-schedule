@@ -11,6 +11,7 @@ export const GMAIL_CONFIG_FILE = path.join(CONFIG_DIR, "gmail.json");
 export const SLACK_CONFIG_FILE = path.join(CONFIG_DIR, "slack.json");
 export const MCP_CONFIG_FILE = path.join(CONFIG_DIR, "mcp.json");
 export const PROMPTS_DIR = path.join(CONFIG_DIR, "prompts");
+export const CONSOLE_DIR = path.join(CONFIG_DIR, "console");
 export const LAUNCH_AGENTS_DIR = path.join(HOME, "Library", "LaunchAgents");
 
 export function plistPath(name: string): string {
@@ -39,4 +40,8 @@ export function promptsDir(name: string): string {
 
 export function promptIndexPath(name: string): string {
   return path.join(PROMPTS_DIR, name, "index.json");
+}
+
+export function consoleSessionPath(sessionId: string): string {
+  return path.join(CONSOLE_DIR, `${sessionId}.json`);
 }

@@ -39,7 +39,7 @@ export function runWrappedCommand(name: string): void {
 
   const record = createRun(name, "launchd");
 
-  const env = { ...process.env };
+  const env: Record<string, string | undefined> = { ...process.env, CLAUDE_SCHEDULE_INTERNAL: "1" };
   delete env.CLAUDECODE;
   delete env.CLAUDE_CODE_ENTRYPOINT;
 

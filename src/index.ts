@@ -8,6 +8,9 @@ import { logsCommand } from "./commands/logs";
 import { runCommand } from "./commands/run";
 import { uiCommand } from "./commands/ui";
 import { runWrappedCommand } from "./commands/run-wrapped";
+import { consoleHookCommand } from "./hooks/console-hook";
+import { setupHooksCommand } from "./commands/setup-hooks";
+import { consoleSummarizeCommand } from "./commands/console-summarize";
 
 const program = new Command();
 
@@ -55,5 +58,20 @@ program
   .command("_run-wrapped <name>")
   .description("(internal) Run a schedule with history tracking — used by launchd")
   .action(runWrappedCommand);
+
+program
+  .command("_console-hook")
+  .description("(internal) Receive Claude Code hook events via stdin")
+  .action(consoleHookCommand);
+
+program
+  .command("_console-summarize <sessionId>")
+  .description("(internal) Generate title and summary for a console session")
+  .action(consoleSummarizeCommand);
+
+program
+  .command("setup-hooks")
+  .description("Configure Claude Code hooks for console monitoring")
+  .action(setupHooksCommand);
 
 program.parse();

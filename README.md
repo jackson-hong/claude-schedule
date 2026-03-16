@@ -2,14 +2,16 @@
 
 macOS `launchd` 기반으로 Claude Code를 자동 실행하는 스케줄러. 자연어로 시간을 입력하면 크론 표현식으로 변환해 등록한다.
 
-웹 대시보드(UI)와 CLI 모두 지원하며, Gmail SMTP 연동으로 실행 결과를 이메일로 받을 수 있다.
+웹 대시보드(UI)와 CLI 모두 지원하며, Gmail/Slack 연동으로 실행 결과를 받을 수 있다.
 
 ## 주요 기능
 
 - **자연어 스케줄링** — "매일 오후 6시 반", "평일 오전 9시" 같은 표현을 크론으로 자동 변환
 - **웹 대시보드** — 스케줄 CRUD, 즉시 실행, 빌드 히스토리 조회
+- **Claude Console** — Claude Code Hook 기반 실시간 세션 모니터링, AI 자동 요약/제목 생성, 터미널 Resume
 - **빌드 히스토리** — Jenkins 스타일 실행 이력 (실시간 상태, 출력 로그, SSE 스트리밍)
 - **Gmail 연동** — App Password 기반 SMTP MCP 서버로 Claude가 이메일 전송 가능
+- **Slack 연동** — Webhook 기반 MCP 서버로 Claude가 Slack 메시지 전송 가능
 - **macOS launchd** — 맥을 닫아도 스케줄이 실행됨 (cron 대신 launchd 사용)
 
 ## 설치
@@ -59,12 +61,6 @@ claude-schedule add pr-review \
 claude-schedule list
 ```
 
-```
-NAME            SCHEDULE      AT                PROMPT                           DIR
-daily-report    30 18 * * *   매일 오후 6시 반    /daily-report $(date +%Y-%m-%d)  ~/
-pr-review       0 9 * * 1-5   평일 오전 9시       어제 올라온 PR 리뷰해줘            ~/my-project
-```
-
 #### 스케줄 삭제
 
 ```bash
@@ -97,7 +93,37 @@ claude-schedule ui --port 8080    # 포트 지정
 - 즉시 실행 (Run 버튼)
 - 빌드 히스토리 조회 (실행 상태, 소요 시간, 출력 로그)
 - 프롬프트 인라인 수정
-- Gmail 연결 / 해제
+- Gmail / Slack 연결 / 해제
+- **Claude Console** — 실시간 세션 모니터링
+
+### Claude Console
+
+Claude Code의 Hook 시스템을 활용하여 현재 실행 중인 모든 Claude Code 세션을 실시간으로 모니터링한다.
+
+#### 설정
+
+```bash
+claude-schedule setup-hooks   # ~/.claude/settings.json에 hook 자동 등록
+# Claude Code 재시작 필요 (hook은 세션 시작 시 스냅샷)
+```
+
+#### 기능
+
+- **실시간 세션 목록** — 활성/대기/종료 상태별 그룹 테이블 (SSE 실시간 업데이트)
+- **AI 자동 요약** — 매 응답 완료 시 Claude Haiku로 제목/요약 자동 생성
+- **세션 상세** — 프롬프트 히스토리, 마지막 응답, 요약 확인
+- **Resume in Terminal** — 기본 터미널 앱에서 세션 이어가기
+- **세션 숨기기** — x 버튼으로 불필요한 세션 비노출
+- **종료 그룹 접기** — 종료 세션은 기본 접힌 상태
+
+#### 동작 원리
+
+1. `setup-hooks`가 `~/.claude/settings.json`에 4개 hook 등록 (SessionStart, UserPromptSubmit, Stop, SessionEnd)
+2. Hook은 `type: "command"`로 `claude-schedule _console-hook` 실행
+3. Hook이 stdin으로 이벤트 JSON 수신 → `~/.claude-schedule/console/{session_id}.json` 파일 생성/업데이트
+4. 매 Stop 이벤트 시 백그라운드에서 `claude-schedule _console-summarize` 실행 → 제목/요약 생성
+5. 대시보드가 `fs.watch`로 파일 변경 감지 → SSE로 클라이언트에 실시간 전달
+6. 내부 Claude 호출은 `CLAUDE_SCHEDULE_INTERNAL=1` 환경변수로 hook 무한 루프 방지
 
 ### Gmail 연동
 
@@ -127,14 +153,20 @@ Gmail이 활성화된 스케줄은 실행 시 `--mcp-config` 플래그로 `send_
 ~/.claude-schedule/
 ├── config.json          # 등록된 스케줄 목록
 ├── gmail.json           # Gmail SMTP 자격증명
-├── mcp.json             # Gmail MCP 서버 설정
+├── slack.json           # Slack Webhook 자격증명
+├── mcp.json             # MCP 서버 설정
 ├── logs/                # launchd 실행 로그
 │   └── {name}.log
-└── runs/                # 빌드 히스토리
-    └── {name}/
-        ├── index.json   # 실행 이력 메타데이터
-        ├── 1.log        # #1 실행 출력
-        └── 2.log        # #2 실행 출력
+├── runs/                # 빌드 히스토리
+│   └── {name}/
+│       ├── index.json   # 실행 이력 메타데이터
+│       ├── 1.log        # #1 실행 출력
+│       └── 2.log        # #2 실행 출력
+├── prompts/             # 프롬프트 히스토리
+│   └── {name}/
+│       └── index.json
+└── console/             # Claude Console 세션 데이터
+    └── {session_id}.json
 
 ~/Library/LaunchAgents/
 └── com.claude-schedule.{name}.plist
@@ -158,36 +190,54 @@ Gmail이 활성화된 스케줄은 실행 시 `--mcp-config` 플래그로 `send_
 | GET | `/api/gmail/status` | Gmail 연결 상태 |
 | POST | `/api/gmail/connect` | Gmail 연결 |
 | DELETE | `/api/gmail/disconnect` | Gmail 해제 |
+| GET | `/api/slack/status` | Slack 연결 상태 |
+| POST | `/api/slack/connect` | Slack 연결 |
+| DELETE | `/api/slack/disconnect` | Slack 해제 |
+| GET | `/api/console/sessions` | 콘솔 세션 목록 |
+| GET | `/api/console/sessions/:id` | 세션 상세 |
+| DELETE | `/api/console/sessions` | 세션 데이터 초기화 |
+| POST | `/api/console/sessions/:id/summarize` | 세션 요약 생성 |
+| POST | `/api/console/sessions/:id/resume` | 터미널에서 세션 Resume |
+| GET | `/api/console/stream` | 콘솔 SSE 실시간 스트리밍 |
 
 ## 프로젝트 구조
 
 ```
 src/
-├── index.ts              # CLI 진입점 (commander)
-├── types.ts              # 공통 타입 (Schedule, RunRecord, RunHistory)
+├── index.ts                  # CLI 진입점 (commander)
+├── types.ts                  # 공통 타입
 ├── commands/
-│   ├── add.ts            # 스케줄 추가
-│   ├── list.ts           # 스케줄 목록
-│   ├── remove.ts         # 스케줄 삭제
-│   ├── logs.ts           # 로그 확인
-│   ├── run.ts            # 즉시 실행
-│   ├── run-wrapped.ts    # launchd 실행 래퍼 (히스토리 기록)
-│   └── ui.ts             # 웹 대시보드 시작
+│   ├── add.ts                # 스케줄 추가
+│   ├── list.ts               # 스케줄 목록
+│   ├── remove.ts             # 스케줄 삭제
+│   ├── logs.ts               # 로그 확인
+│   ├── run.ts                # 즉시 실행
+│   ├── run-wrapped.ts        # launchd 실행 래퍼
+│   ├── ui.ts                 # 웹 대시보드 시작
+│   ├── setup-hooks.ts        # Claude Code hook 설정
+│   └── console-summarize.ts  # 세션 요약 생성
+├── hooks/
+│   └── console-hook.ts       # Claude Code hook 이벤트 수신
 ├── lib/
-│   ├── paths.ts          # 경로 상수
-│   ├── config.ts         # 스케줄 설정 CRUD
-│   ├── parser.ts         # 자연어 → 크론 변환
-│   ├── plist.ts          # plist XML 생성
-│   ├── launchctl.ts      # launchctl load/unload
-│   ├── runs.ts           # 빌드 히스토리 관리
-│   └── gmail.ts          # Gmail 설정 CRUD + SMTP 테스트
+│   ├── paths.ts              # 경로 상수
+│   ├── config.ts             # 스케줄 설정 CRUD
+│   ├── parser.ts             # 자연어 → 크론 변환
+│   ├── plist.ts              # plist XML 생성
+│   ├── launchctl.ts          # launchctl load/unload
+│   ├── runs.ts               # 빌드 히스토리 관리
+│   ├── console-store.ts      # 콘솔 세션 스토어 (fs.watch + EventEmitter)
+│   ├── gmail.ts              # Gmail 설정 CRUD + SMTP 테스트
+│   ├── slack.ts              # Slack 설정 CRUD + Webhook 테스트
+│   ├── mcp-config.ts         # MCP 설정 생성
+│   └── prompt-history.ts     # 프롬프트 버전 관리
 ├── mcp/
-│   └── gmail-server.ts   # Gmail MCP 서버 (send_email 도구)
+│   ├── gmail-server.ts       # Gmail MCP 서버 (send_email)
+│   └── slack-server.ts       # Slack MCP 서버 (send_slack_message)
 └── ui/
-    ├── server.ts         # HTTP 서버
-    ├── routes.ts         # API 라우팅
-    ├── runner.ts         # Claude 프로세스 실행 + SSE
-    └── html.ts           # 대시보드 HTML/CSS/JS
+    ├── server.ts             # HTTP 서버
+    ├── routes.ts             # API 라우팅
+    ├── runner.ts             # Claude 프로세스 실행 + SSE
+    └── html.ts               # 대시보드 HTML/CSS/JS
 ```
 
 ## 제한사항

@@ -84,7 +84,7 @@ export function startRun(name: string): { runId: string; runNumber: number } {
   const runId = `run-${nextId++}-${Date.now()}`;
   const emitter = new EventEmitter();
 
-  const env = { ...process.env };
+  const env: Record<string, string | undefined> = { ...process.env, CLAUDE_SCHEDULE_INTERNAL: "1" };
   delete env.CLAUDECODE;
   delete env.CLAUDE_CODE_ENTRYPOINT;
 
