@@ -3,9 +3,7 @@ import path from "path";
 import readline from "readline";
 import { addSchedule } from "../lib/config";
 import { parseNaturalLanguageToCron } from "../lib/parser";
-import { writePlist } from "../lib/plist";
-import { load } from "../lib/launchctl";
-import { plistPath } from "../lib/paths";
+import { registerSchedule } from "../lib/platform";
 import { Schedule } from "../types";
 
 function confirm(question: string): Promise<boolean> {
@@ -54,10 +52,11 @@ export async function addCommand(
 
   try {
     addSchedule(schedule);
-    const plist = writePlist(schedule);
-    load(plist);
+    const configPath = registerSchedule(schedule);
     console.log(`\nSchedule "${name}" registered successfully.`);
-    console.log(`  Plist: ${plistPath(name)}`);
+    if (configPath) {
+      console.log(`  Config: ${configPath}`);
+    }
   } catch (err) {
     console.error(`Error: ${(err as Error).message}`);
     process.exit(1);

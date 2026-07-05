@@ -2,11 +2,9 @@ import { IncomingMessage, ServerResponse } from "http";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { execSync, spawn } from "child_process";
-import { loadSchedules, getSchedule, addSchedule, updateSchedule, removeSchedule } from "../lib/config";
+import { loadSchedules, getSchedule, addSchedule, updateSchedule, removeSchedule, reorderSchedulesInGroup, clearGroupAssignments } from "../lib/config";
 import { parseNaturalLanguageToCron } from "../lib/parser";
-import { writePlist, deletePlist } from "../lib/plist";
-import { load, unload } from "../lib/launchctl";
+import { registerSchedule, unregisterSchedule, schedulerUnload, IS_WINDOWS } from "../lib/platform";
 import { plistPath, logPath } from "../lib/paths";
 import { Schedule } from "../types";
 import { startRun, getRun, cancelRun, findActiveRunId } from "./runner";
@@ -15,7 +13,7 @@ import { listRuns, getRunRecord, getRunOutput, deleteRunHistory } from "../lib/r
 import { savePromptVersion, listPromptVersions, getPromptVersion, deletePromptHistory } from "../lib/prompt-history";
 import { saveGmailConfig, loadGmailConfig, removeGmailConfig, isGmailConnected, testGmailConnection } from "../lib/gmail";
 import { saveSlackConfig, loadSlackConfig, removeSlackConfig, isSlackConnected, testWebhook } from "../lib/slack";
-import { getAllSessions, getSession, clearSessions, onUpdate, startWatching } from "../lib/console-store";
+import { loadGroups, getGroup, addGroup, renameGroup, deleteGroup, reorderGroups } from "../lib/groups";
 
 function json(res: ServerResponse, data: unknown, status = 200): void {
   res.writeHead(status, { "Content-Type": "application/json" });
@@ -108,10 +106,27 @@ export async function handleRequest(
       };
 
       addSchedule(schedule);
-      const plist = writePlist(schedule);
-      load(plist);
+      registerSchedule(schedule);
 
       json(res, schedule, 201);
+      return;
+    }
+
+    // PUT /api/schedules/reorder — Reorder schedules within a single group (must precede /:name)
+    if (method === "PUT" && pathname === "/api/schedules/reorder") {
+      const body = await parseBody(req);
+      const { groupId, names } = body as { groupId?: string | null; names?: string[] };
+      if (!Array.isArray(names)) {
+        error(res, "Missing required field: names (string[])");
+        return;
+      }
+      const gid = groupId === undefined || groupId === "" ? null : groupId;
+      if (gid !== null && !getGroup(String(gid))) {
+        error(res, `Group "${gid}" not found.`, 404);
+        return;
+      }
+      reorderSchedulesInGroup(gid, names.map(String));
+      json(res, { ok: true });
       return;
     }
 
@@ -126,12 +141,13 @@ export async function handleRequest(
       }
 
       const body = await parseBody(req);
-      const { at, prompt, dir, useGmail, useSlack } = body as {
+      const { at, prompt, dir, useGmail, useSlack, groupId } = body as {
         at?: string;
         prompt?: string;
         dir?: string;
         useGmail?: boolean;
         useSlack?: boolean;
+        groupId?: string | null;
       };
 
       const updates: Record<string, unknown> = {};
@@ -149,20 +165,69 @@ export async function handleRequest(
           ? path.resolve(String(dir).replace(/^~/, os.homedir()))
           : os.homedir();
       }
+      if (groupId !== undefined) {
+        if (groupId === null || groupId === "") {
+          updates.groupId = null;
+        } else {
+          if (!getGroup(String(groupId))) {
+            error(res, `Group "${groupId}" not found.`, 404);
+            return;
+          }
+          updates.groupId = String(groupId);
+        }
+      }
 
-      if (at !== undefined && String(at) !== existing.at) {
+      const cronChanged = at !== undefined && String(at) !== existing.at;
+      if (cronChanged) {
         const cron = parseNaturalLanguageToCron(String(at));
         updates.at = String(at);
         updates.cron = cron;
       }
 
-      // Unload old plist, update config, write new plist, reload
-      unload(plistPath(name));
-      const updated = updateSchedule(name, updates);
-      const plist = writePlist(updated);
-      load(plist);
+      // 스케줄러 재등록은 cron이 바뀔 때만 필요. 그 외 메타 변경은 config만 갱신.
+      const launchdAffecting =
+        cronChanged ||
+        updates.workDir !== undefined ||
+        updates.useGmail !== undefined ||
+        updates.useSlack !== undefined;
+
+      let updated: Schedule;
+      if (launchdAffecting) {
+        const configPath = IS_WINDOWS ? "" : plistPath(name);
+        schedulerUnload(existing, configPath);
+        updated = updateSchedule(name, updates);
+        registerSchedule(updated);
+      } else {
+        updated = updateSchedule(name, updates);
+      }
 
       json(res, updated);
+      return;
+    }
+
+    // POST /api/schedules/:name/toggle — Toggle schedule on/off
+    const toggleMatch = pathname.match(/^\/api\/schedules\/([^/]+)\/toggle$/);
+    if (method === "POST" && toggleMatch) {
+      const name = decodeURIComponent(toggleMatch[1]);
+      const existing = getSchedule(name);
+      if (!existing) {
+        error(res, `Schedule "${name}" not found.`, 404);
+        return;
+      }
+
+      const currentlyEnabled = existing.enabled !== false;
+      const newEnabled = !currentlyEnabled;
+
+      if (newEnabled) {
+        const updated = updateSchedule(name, { enabled: true });
+        registerSchedule(updated);
+        json(res, updated);
+      } else {
+        const configPath = IS_WINDOWS ? "" : plistPath(name);
+        schedulerUnload(existing, configPath);
+        const updated = updateSchedule(name, { enabled: false });
+        json(res, updated);
+      }
       return;
     }
 
@@ -176,8 +241,7 @@ export async function handleRequest(
         return;
       }
 
-      unload(plistPath(name));
-      deletePlist(name);
+      unregisterSchedule(schedule);
       removeSchedule(name);
       deleteRunHistory(name);
       deletePromptHistory(name);
@@ -458,10 +522,10 @@ export async function handleRequest(
       // Save current prompt as a version before restoring
       savePromptVersion(name, schedule.prompt);
       // Update schedule with restored prompt
-      unload(plistPath(name));
+      const configPath = IS_WINDOWS ? "" : plistPath(name);
+      schedulerUnload(schedule, configPath);
       const updated = updateSchedule(name, { prompt: version.prompt });
-      const plist = writePlist(updated);
-      load(plist);
+      registerSchedule(updated);
       json(res, updated);
       return;
     }
@@ -499,98 +563,65 @@ export async function handleRequest(
       return;
     }
 
-    // GET /api/console/sessions — List all console sessions
-    if (method === "GET" && pathname === "/api/console/sessions") {
-      json(res, getAllSessions());
+    // GET /api/groups — List all groups (order ascending)
+    if (method === "GET" && pathname === "/api/groups") {
+      const groups = loadGroups().sort((a, b) => a.order - b.order);
+      json(res, groups);
       return;
     }
 
-    // GET /api/console/sessions/:id — Single session detail
-    const consoleSessionMatch = pathname.match(/^\/api\/console\/sessions\/([^/]+)$/);
-    if (method === "GET" && consoleSessionMatch) {
-      const sessionId = decodeURIComponent(consoleSessionMatch[1]);
-      const session = getSession(sessionId);
-      if (!session) {
-        error(res, `Session "${sessionId}" not found.`, 404);
+    // POST /api/groups — Create a group
+    if (method === "POST" && pathname === "/api/groups") {
+      const body = await parseBody(req);
+      const { name } = body as { name?: string };
+      if (!name || !String(name).trim()) {
+        error(res, "Missing required field: name");
         return;
       }
-      json(res, session);
+      const group = addGroup(String(name));
+      json(res, group, 201);
       return;
     }
 
-    // DELETE /api/console/sessions — Clear all sessions
-    if (method === "DELETE" && pathname === "/api/console/sessions") {
-      clearSessions();
+    // PUT /api/groups/reorder — Reorder groups (must precede /:id)
+    if (method === "PUT" && pathname === "/api/groups/reorder") {
+      const body = await parseBody(req);
+      const { ids } = body as { ids?: string[] };
+      if (!Array.isArray(ids)) {
+        error(res, "Missing required field: ids (string[])");
+        return;
+      }
+      const reordered = reorderGroups(ids.map(String));
+      json(res, reordered);
+      return;
+    }
+
+    // PUT /api/groups/:id — Rename group
+    const groupRenameMatch = pathname.match(/^\/api\/groups\/([^/]+)$/);
+    if (method === "PUT" && groupRenameMatch) {
+      const id = decodeURIComponent(groupRenameMatch[1]);
+      const body = await parseBody(req);
+      const { name } = body as { name?: string };
+      if (!name || !String(name).trim()) {
+        error(res, "Missing required field: name");
+        return;
+      }
+      const group = renameGroup(id, String(name));
+      json(res, group);
+      return;
+    }
+
+    // DELETE /api/groups/:id — Delete group + reassign schedules to unsorted
+    const groupDeleteMatch = pathname.match(/^\/api\/groups\/([^/]+)$/);
+    if (method === "DELETE" && groupDeleteMatch) {
+      const id = decodeURIComponent(groupDeleteMatch[1]);
+      if (!getGroup(id)) {
+        error(res, `Group "${id}" not found.`, 404);
+        return;
+      }
+      clearGroupAssignments(id);
+      deleteGroup(id);
       json(res, { ok: true });
-      return;
-    }
-
-    // POST /api/console/sessions/:id/summarize — Manually trigger summarization
-    const consoleSummarizeMatch = pathname.match(/^\/api\/console\/sessions\/([^/]+)\/summarize$/);
-    if (method === "POST" && consoleSummarizeMatch) {
-      const sessionId = decodeURIComponent(consoleSummarizeMatch[1]);
-      const session = getSession(sessionId);
-      if (!session) {
-        error(res, `Session "${sessionId}" not found.`, 404);
-        return;
-      }
-
-      try {
-        const bin = execSync("which claude-schedule", { encoding: "utf-8" }).trim();
-        const child = spawn(bin, ["_console-summarize", sessionId], {
-          stdio: "ignore",
-          detached: true,
-        });
-        child.unref();
-        json(res, { ok: true, message: "Summarization started" });
-      } catch {
-        error(res, "Failed to start summarization", 500);
-      }
-      return;
-    }
-
-    // POST /api/console/sessions/:id/resume — Open terminal and resume session
-    const consoleResumeMatch = pathname.match(/^\/api\/console\/sessions\/([^/]+)\/resume$/);
-    if (method === "POST" && consoleResumeMatch) {
-      const sessionId = decodeURIComponent(consoleResumeMatch[1]);
-      const session = getSession(sessionId);
-      if (!session) {
-        error(res, `Session "${sessionId}" not found.`, 404);
-        return;
-      }
-
-      try {
-        const tmpFile = path.join(os.tmpdir(), `claude-resume-${Date.now()}.command`);
-        const script = `#!/bin/bash\ncd ${JSON.stringify(session.cwd)} && claude --resume ${JSON.stringify(sessionId)}\nrm -f ${JSON.stringify(tmpFile)}\n`;
-        fs.writeFileSync(tmpFile, script, { mode: 0o755 });
-        execSync(`open ${JSON.stringify(tmpFile)}`, { stdio: "ignore" });
-        json(res, { ok: true });
-      } catch {
-        error(res, "Failed to open terminal", 500);
-      }
-      return;
-    }
-
-    // GET /api/console/stream — SSE for console session updates
-    if (method === "GET" && pathname === "/api/console/stream") {
-      startWatching();
-      res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      });
-
-      // 초기 전체 세션 전송
-      const sessions = getAllSessions();
-      res.write(`data: ${JSON.stringify({ type: "init", sessions })}\n\n`);
-
-      const unsubscribe = onUpdate((session) => {
-        res.write(`data: ${JSON.stringify({ type: "update", session })}\n\n`);
-      });
-
-      req.on("close", () => {
-        unsubscribe();
-      });
       return;
     }
 

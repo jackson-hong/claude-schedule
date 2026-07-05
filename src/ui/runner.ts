@@ -1,7 +1,7 @@
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import { getSchedule } from "../lib/config";
-import { createRun, completeRun, appendRunOutput } from "../lib/runs";
+import { createRun, completeRun, appendRunOutput, updateRunUsage } from "../lib/runs";
 import { shouldUseMcpConfig, getMcpConfigPath } from "../lib/mcp-config";
 
 interface LogEntry {
@@ -130,6 +130,18 @@ export function startRun(name: string): { runId: string; runNumber: number } {
         appendRunOutput(name, runRecord.number, formatted);
         emitter.emit("data", formatted);
       }
+      // 토큰 사용량 수집
+      try {
+        const obj = JSON.parse(line);
+        if (obj.type === "result") {
+          const cost = obj.total_cost_usd || 0;
+          const input = obj.usage?.input_tokens || 0;
+          const output = obj.usage?.output_tokens || 0;
+          if (cost > 0 || input > 0 || output > 0) {
+            updateRunUsage(name, runRecord.number, cost, input, output);
+          }
+        }
+      } catch { /* not JSON */ }
     }
   });
 
@@ -192,13 +204,20 @@ export function cancelRun(runId: string): boolean {
   if (!info || info.done) return false;
   const pid = info.process.pid;
   if (!pid) return false;
-  // Kill the entire process group (negative pid) so child processes are also terminated
-  try { process.kill(-pid, "SIGTERM"); } catch { /* already dead */ }
-  // Force kill after 3 seconds if still alive
-  setTimeout(() => {
-    if (!info.done) {
-      try { process.kill(-pid, "SIGKILL"); } catch { /* already dead */ }
-    }
-  }, 3000);
+  // Kill the entire process group so child processes are also terminated
+  if (process.platform === "win32") {
+    // Windows: taskkill /T for tree kill
+    try {
+      require("child_process").execSync(`taskkill /pid ${pid} /T /F`, { stdio: "pipe" });
+    } catch { /* already dead */ }
+  } else {
+    try { process.kill(-pid, "SIGTERM"); } catch { /* already dead */ }
+    // Force kill after 3 seconds if still alive
+    setTimeout(() => {
+      if (!info.done) {
+        try { process.kill(-pid, "SIGKILL"); } catch { /* already dead */ }
+      }
+    }, 3000);
+  }
   return true;
 }

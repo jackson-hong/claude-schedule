@@ -1,7 +1,7 @@
-import { execSync } from "child_process";
 import fs from "fs";
 import { Schedule } from "../types";
 import { plistPath, logPath } from "./paths";
+import { findBinary, getCurrentPath } from "./platform";
 
 interface CalendarInterval {
   Minute?: number;
@@ -24,34 +24,40 @@ export function cronToCalendarIntervals(cron: string): CalendarInterval[] {
     }
   }
 
+  // 모든 필드를 확장하여 조합 생성
+  const minutes = expandField(minute, 0, 59);
+  const hours = expandField(hour, 0, 23);
+  const days = expandField(day, 1, 31);
+  const months = expandField(month, 1, 12);
   const weekdays = expandField(weekday, 0, 6);
 
-  if (weekdays === null) {
-    // wildcard weekday — single interval
-    const interval = buildInterval(minute, hour, day, month);
-    return [interval];
+  // 각 필드의 모든 조합으로 interval 생성
+  const intervals: CalendarInterval[] = [];
+  const minuteList = minutes || [null];
+  const hourList = hours || [null];
+  const dayList = days || [null];
+  const monthList = months || [null];
+  const weekdayList = weekdays || [null];
+
+  for (const mo of monthList) {
+    for (const d of dayList) {
+      for (const wd of weekdayList) {
+        for (const h of hourList) {
+          for (const m of minuteList) {
+            const interval: CalendarInterval = {};
+            if (m !== null) interval.Minute = m;
+            if (h !== null) interval.Hour = h;
+            if (d !== null) interval.Day = d;
+            if (mo !== null) interval.Month = mo;
+            if (wd !== null) interval.Weekday = wd;
+            intervals.push(interval);
+          }
+        }
+      }
+    }
   }
 
-  // specific weekdays — one interval per weekday
-  return weekdays.map((wd) => {
-    const interval = buildInterval(minute, hour, day, month);
-    interval.Weekday = wd;
-    return interval;
-  });
-}
-
-function buildInterval(
-  minute: string,
-  hour: string,
-  day: string,
-  month: string
-): CalendarInterval {
-  const interval: CalendarInterval = {};
-  if (minute !== "*") interval.Minute = parseInt(minute, 10);
-  if (hour !== "*") interval.Hour = parseInt(hour, 10);
-  if (day !== "*") interval.Day = parseInt(day, 10);
-  if (month !== "*") interval.Month = parseInt(month, 10);
-  return interval;
+  return intervals;
 }
 
 function expandField(field: string, min: number, max: number): number[] | null {
@@ -95,32 +101,23 @@ function dictEntries(iv: CalendarInterval, indent = "      "): string {
   return lines.join("\n") + "\n";
 }
 
-function findClaudeBinary(): string {
-  try {
-    return execSync("which claude", { encoding: "utf-8" }).trim();
-  } catch {
-    throw new Error("Could not find 'claude' binary. Make sure Claude CLI is installed.");
-  }
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
-function findClaudeScheduleBinary(): string {
-  try {
-    return execSync("which claude-schedule", { encoding: "utf-8" }).trim();
-  } catch {
-    throw new Error("Could not find 'claude-schedule' binary. Make sure it is installed globally.");
-  }
+/** plist 파일 경로 반환 (platform.ts에서 사용) */
+export function getPlistPath(name: string): string {
+  return plistPath(name);
 }
 
-function getCurrentPath(): string {
-  try {
-    return execSync("echo $PATH", { encoding: "utf-8" }).trim();
-  } catch {
-    return "/usr/local/bin:/usr/bin:/bin";
-  }
-}
-
-export function generatePlist(schedule: Schedule): string {
-  const scheduleBin = findClaudeScheduleBinary();
+/** macOS plist XML 생성 (platform.ts에서 사용) */
+export function generatePlistXml(schedule: Schedule): string {
+  const scheduleBin = findBinary("claude-schedule");
   const label = `com.claude-schedule.${schedule.name}`;
   const log = logPath(schedule.name);
   const envPath = getCurrentPath();
@@ -155,25 +152,21 @@ ${calendarXml}
 `;
 }
 
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+/** 기존 호환 — plist 생성 + 파일 저장 */
+export function generatePlist(schedule: Schedule): string {
+  return generatePlistXml(schedule);
 }
 
 export function writePlist(schedule: Schedule): string {
-  const path = plistPath(schedule.name);
-  const content = generatePlist(schedule);
-  fs.writeFileSync(path, content);
-  return path;
+  const p = plistPath(schedule.name);
+  const content = generatePlistXml(schedule);
+  fs.writeFileSync(p, content);
+  return p;
 }
 
 export function deletePlist(name: string): void {
-  const path = plistPath(name);
-  if (fs.existsSync(path)) {
-    fs.unlinkSync(path);
+  const p = plistPath(name);
+  if (fs.existsSync(p)) {
+    fs.unlinkSync(p);
   }
 }

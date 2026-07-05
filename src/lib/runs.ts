@@ -40,6 +40,9 @@ export function createRun(
     exitCode: null,
     status: "running",
     outputFile,
+    costUsd: null,
+    inputTokens: null,
+    outputTokens: null,
   };
 
   history.runs.push(record);
@@ -69,6 +72,23 @@ export function completeRun(
     new Date(record.finishedAt).getTime() -
     new Date(record.startedAt).getTime();
 
+  saveHistory(history);
+}
+
+export function updateRunUsage(
+  scheduleName: string,
+  number: number,
+  costUsd: number,
+  inputTokens: number,
+  outputTokens: number
+): void {
+  const history = loadHistory(scheduleName);
+  const record = history.runs.find((r) => r.number === number);
+  if (!record) return;
+
+  record.costUsd = (record.costUsd || 0) + costUsd;
+  record.inputTokens = (record.inputTokens || 0) + inputTokens;
+  record.outputTokens = (record.outputTokens || 0) + outputTokens;
   saveHistory(history);
 }
 

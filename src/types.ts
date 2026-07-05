@@ -5,8 +5,18 @@ export interface Schedule {
   cron: string;
   workDir: string;
   createdAt: string;
+  enabled?: boolean;
   useGmail?: boolean;
   useSlack?: boolean;
+  groupId?: string | null;
+  order?: number;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
 }
 
 export interface RunRecord {
@@ -17,8 +27,11 @@ export interface RunRecord {
   finishedAt: string | null;
   durationMs: number | null;
   exitCode: number | null;
-  status: 'running' | 'success' | 'failure';
+  status: 'running' | 'success' | 'failure' | 'timeout';
   outputFile: string;
+  costUsd: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
 }
 
 export interface RunHistory {
@@ -37,44 +50,4 @@ export interface PromptHistory {
   scheduleName: string;
   nextVersionNumber: number;
   versions: PromptVersion[];
-}
-
-// Console types
-
-export interface ConsolePrompt {
-  prompt: string;
-  submittedAt: string;
-}
-
-export interface ConsoleSession {
-  sessionId: string;
-  cwd: string;
-  model: string | null;
-  permissionMode: string | null;
-  status: 'active' | 'idle' | 'ended';
-  startedAt: string;
-  lastActivityAt: string;
-  prompts: ConsolePrompt[];
-  lastAssistantMessage: string | null;
-  endReason: string | null;
-  transcriptPath: string | null;
-  title: string | null;
-  summary: string | null;
-}
-
-export interface ConsoleEvent {
-  session_id: string;
-  hook_event_name: 'SessionStart' | 'UserPromptSubmit' | 'Stop' | 'SessionEnd';
-  cwd: string;
-  permission_mode?: string;
-  transcript_path?: string;
-  // SessionStart
-  source?: string;
-  model?: string;
-  // UserPromptSubmit
-  prompt?: string;
-  // Stop
-  last_assistant_message?: string;
-  // SessionEnd
-  reason?: string;
 }

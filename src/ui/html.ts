@@ -50,7 +50,7 @@ export function getDashboardHtml(): string {
   .btn-danger:hover { background: #1c0a0a; border-color: #ef4444; }
   .btn-sm { padding: 4px 10px; font-size: 12px; }
 
-  main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  main { padding: 24px; }
 
   .empty-state {
     text-align: center;
@@ -108,9 +108,59 @@ export function getDashboardHtml(): string {
 
   .btn-run:hover { background: #c4956a; }
 
+  .toggle-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #404040;
+    border-radius: 20px;
+    transition: background 0.2s;
+  }
+
+  .toggle-slider::before {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: #e5e5e5;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    background: #d4a574;
+  }
+
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(16px);
+  }
+
+  .card.disabled {
+    opacity: 0.5;
+  }
+
+  .card.disabled .card-name {
+    color: #737373;
+  }
+
   .card-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 6px;
     margin-top: auto;
     padding-top: 10px;
@@ -210,6 +260,7 @@ export function getDashboardHtml(): string {
   .build-dot.success { background: #22c55e; }
   .build-dot.failure { background: #ef4444; }
   .build-dot.running { background: transparent; }
+  .build-dot.timeout { background: #f97316; }
 
   .spinner-sm {
     display: inline-block;
@@ -233,6 +284,13 @@ export function getDashboardHtml(): string {
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
+  }
+
+  .build-cost {
+    font-size: 11px;
+    color: #8b5cf6;
+    margin-left: auto;
+    white-space: nowrap;
   }
 
   .build-cancel {
@@ -447,6 +505,7 @@ export function getDashboardHtml(): string {
   .status-badge.success { background: #052e16; color: #22c55e; }
   .status-badge.failure { background: #2a0a0a; color: #ef4444; }
   .status-badge.running { background: #1c1006; color: #d4a574; }
+  .status-badge.timeout { background: #1c1006; color: #f97316; }
 
   /* Confirm dialog */
   .confirm-text {
@@ -690,280 +749,251 @@ export function getDashboardHtml(): string {
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Tab Navigation */
-  .tab-nav {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid #262626;
-    padding: 0 24px;
-    background: #0a0a0a;
+  /* Lanes (groups) */
+  .lane {
+    margin-bottom: 24px;
   }
 
-  .tab-btn {
-    padding: 10px 20px;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: #737373;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: color 0.15s, border-color 0.15s;
-  }
-
-  .tab-btn:hover { color: #e5e5e5; }
-  .tab-btn.active { color: #d4a574; border-bottom-color: #d4a574; }
-
-  .tab-btn .badge {
-    display: inline-block;
-    background: #22c55e;
-    color: #0a0a0a;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 10px;
-    margin-left: 6px;
-    min-width: 18px;
-    text-align: center;
-  }
-
-  .tab-btn .badge.zero { background: #404040; color: #737373; }
-
-  /* Console */
-  .console-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-  }
-
-  .console-toolbar .section-label { font-size: 14px; }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: inline-block;
-  }
-
-  .status-dot.active { background: #22c55e; box-shadow: 0 0 6px #22c55e80; }
-  .status-dot.idle { background: #eab308; }
-  .status-dot.ended { background: #525252; }
-
-  /* Session Group */
-  .session-group {
-    margin-bottom: 20px;
-  }
-
-  .session-group-header {
-    font-size: 12px;
-    font-weight: 600;
-    color: #737373;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 0 0 8px 0;
+  .lane-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    cursor: pointer;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #141414;
+    border: 1px solid #262626;
+    border-radius: 8px 8px 0 0;
+    border-bottom: none;
+    cursor: grab;
     user-select: none;
   }
 
-  .session-group-header:hover { color: #a3a3a3; }
+  .lane-header:active { cursor: grabbing; }
 
-  .session-group-header .group-count {
-    font-weight: 400;
-    color: #525252;
+  .lane-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 
-  .session-group-header .chevron {
-    font-size: 10px;
-    transition: transform 0.15s;
-    color: #525252;
+  .lane-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e5e5e5;
   }
 
-  .session-group-header .chevron.collapsed {
-    transform: rotate(-90deg);
-  }
-
-  /* Session Table */
-  .session-table {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: separate;
-    border-spacing: 0;
-    background: #141414;
-    border: 1px solid #262626;
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .session-table th {
-    text-align: left;
+  .lane-count {
     font-size: 11px;
-    font-weight: 500;
+    color: #737373;
+    background: #262626;
+    padding: 1px 8px;
+    border-radius: 10px;
+  }
+
+  .lane-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+  }
+
+  .lane-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+    padding: 14px;
+    background: #0f0f0f;
+    border: 1px solid #262626;
+    border-radius: 0 0 8px 8px;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .lane-body.lane-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 64px;
+    padding: 14px;
+  }
+
+  .lane-empty-hint {
     color: #525252;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 10px 16px;
-    border-bottom: 1px solid #262626;
+    font-size: 12px;
+  }
+
+  .lane-body.drag-over {
+    background: #14171a;
+    border-color: #d4a574;
+  }
+
+  .lane.lane-dragging {
+    opacity: 0.5;
+  }
+
+  .lane-header.drop-target {
+    box-shadow: 0 -3px 0 0 #d4a574 inset;
+  }
+
+  .lane-add-wrap {
+    text-align: left;
+    margin-top: 16px;
+    padding: 12px 0;
+  }
+
+  /* Card DnD affordances */
+  .card[draggable="true"] {
+    cursor: grab;
+  }
+  .card[draggable="true"]:active {
+    cursor: grabbing;
+  }
+  .card-dragging {
+    opacity: 0.35;
+  }
+  .card.drop-before {
+    box-shadow: -3px 0 0 0 #d4a574;
+  }
+
+  /* View toggle */
+  .view-toggle {
+    display: inline-flex;
+    border: 1px solid #404040;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-right: 4px;
+  }
+  .view-btn {
+    background: #0a0a0a;
+    border: none;
+    color: #a3a3a3;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .view-btn + .view-btn {
+    border-left: 1px solid #262626;
+  }
+  .view-btn:hover { background: #1a1a1a; color: #e5e5e5; }
+  .view-btn.active {
+    background: #d4a574;
+    color: #0a0a0a;
+    font-weight: 600;
+  }
+
+  /* List view (lane-body.lane-list) */
+  .lane-body.lane-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
     background: #0f0f0f;
   }
-
-  .session-table td {
-    padding: 12px 16px;
-    font-size: 13px;
-    border-bottom: 1px solid #1e1e1e;
-    vertical-align: middle;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .lane-body.lane-list.lane-empty {
+    padding: 16px;
   }
 
-  .session-table tr:last-child td {
-    border-bottom: none;
-  }
-
-  .session-table tr {
+  .row {
+    display: grid;
+    grid-template-columns: 18px 8px 1fr auto auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    border-bottom: 1px solid #1a1a1a;
     cursor: pointer;
     transition: background 0.1s;
   }
 
-  .session-table tbody tr:hover {
-    background: #1a1a1a;
-  }
-
-  /* Active row left accent */
-  .session-row-active td:first-child {
-    box-shadow: inset 3px 0 0 #22c55e;
-  }
-
-  .session-row-idle td:first-child {
-    box-shadow: inset 3px 0 0 #eab308;
-  }
-
-  .session-title-cell {
+  .row-latest {
+    min-width: 70px;
     display: flex;
+    justify-content: flex-end;
+  }
+  .row-latest-item {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-  }
-
-  .session-title-text {
-    font-weight: 600;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 240px;
-  }
-
-  .session-model-badge {
-    font-size: 10px;
-    color: #737373;
-    background: #1a1a1a;
-    padding: 2px 6px;
-    border-radius: 3px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .session-dir-cell {
-    font-family: 'SF Mono', 'Menlo', monospace;
-    font-size: 12px;
-    color: #a3a3a3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 260px;
-  }
-
-  .session-summary-cell {
-    color: #737373;
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 300px;
-  }
-
-  .session-count-cell {
-    text-align: center;
-    color: #a3a3a3;
-    font-size: 12px;
-  }
-
-  .session-time-cell {
-    color: #525252;
-    font-size: 12px;
-    white-space: nowrap;
-    text-align: right;
-  }
-
-  .btn-dismiss {
-    background: none;
-    border: none;
-    color: #525252;
-    font-size: 16px;
+    gap: 6px;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 2px 4px;
     border-radius: 4px;
-    line-height: 1;
-    transition: color 0.15s, background 0.15s;
+  }
+  .row-latest-item:hover { background: #1f1f1f; }
+  .row-latest-time {
+    font-size: 11px;
+    color: #737373;
+    white-space: nowrap;
+  }
+  .row-latest-empty {
+    font-size: 12px;
+    color: #404040;
+  }
+  .row:last-child { border-bottom: none; }
+  .row:hover { background: #161616; }
+  .row.disabled { opacity: 0.5; }
+  .row.disabled .row-name { color: #737373; }
+
+  .row-handle {
+    color: #404040;
+    font-size: 11px;
+    user-select: none;
+    cursor: grab;
+    letter-spacing: -2px;
+    text-align: center;
+  }
+  .row-handle:active { cursor: grabbing; }
+
+  .row-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
   }
 
-  .btn-dismiss:hover {
-    color: #ef4444;
-    background: #1c0a0a;
+  .row-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #e5e5e5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .session-detail-prompts {
-    list-style: none;
-    max-height: 340px;
+  .row-at {
+    font-size: 12px;
+    color: #737373;
+    white-space: nowrap;
+  }
+
+  .row-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .row.card-dragging { opacity: 0.35; }
+  .row.drop-before { box-shadow: inset 3px 0 0 #d4a574; }
+
+  /* Dialog input */
+  #dialogInput:focus {
+    outline: none;
+    border-color: #d4a574;
+  }
+
+  /* Edit modal build history */
+  .edit-history {
+    background: #0a0a0a;
+    border: 1px solid #262626;
+    border-radius: 6px;
+    padding: 8px;
+    max-height: 200px;
     overflow-y: auto;
   }
-
-  .session-detail-prompts li {
-    padding: 10px 12px;
-    border: 1px solid #262626;
-    border-radius: 6px;
-    margin-bottom: 6px;
-    background: #1a1a1a;
+  .edit-history .build-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
-
-  .session-detail-prompts li .prompt-time {
-    font-size: 11px;
-    color: #525252;
-    margin-bottom: 4px;
+  .edit-history .build-item {
+    cursor: pointer;
   }
-
-  .session-detail-prompts li .prompt-text {
-    font-size: 13px;
-    color: #d4d4d4;
-    line-height: 1.5;
-    word-break: break-word;
-    white-space: pre-wrap;
-  }
-
-  .session-last-response {
-    background: #1a1a1a;
-    border: 1px solid #262626;
-    border-radius: 6px;
-    padding: 10px 12px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: #a3a3a3;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .console-empty {
-    text-align: center;
-    padding: 64px 24px;
-    color: #525252;
-  }
-
-  .console-empty p { margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -971,6 +1001,10 @@ export function getDashboardHtml(): string {
 <header>
   <h1>claude-<span>schedule</span></h1>
   <div class="header-actions">
+    <div class="view-toggle" id="viewToggle">
+      <button class="view-btn" data-view="card" onclick="setViewMode('card')">Card</button>
+      <button class="view-btn" data-view="list" onclick="setViewMode('list')">List</button>
+    </div>
     <div class="slack-status" id="slackStatus"></div>
     <button class="btn" id="slackBtn" onclick="openSlackModal()">Connect Slack</button>
     <div class="gmail-status" id="gmailStatus"></div>
@@ -979,18 +1013,8 @@ export function getDashboardHtml(): string {
   </div>
 </header>
 
-<nav class="tab-nav">
-  <button class="tab-btn active" onclick="switchTab('schedules')">Schedules</button>
-  <button class="tab-btn" onclick="switchTab('console')">Console <span class="badge zero" id="activeSessionBadge">0</span></button>
-</nav>
-
 <main>
-  <div id="tab-schedules" class="tab-panel">
-    <div id="content"></div>
-  </div>
-  <div id="tab-console" class="tab-panel" style="display:none;">
-    <div id="console-content"></div>
-  </div>
+  <div id="content"></div>
 </main>
 
 <!-- Add Schedule Modal -->
@@ -1069,6 +1093,10 @@ export function getDashboardHtml(): string {
       <input type="checkbox" id="editUseSlack" />
       <label for="editUseSlack">Enable Slack</label>
       <span class="hint" id="editSlackHint"></span>
+    </div>
+    <div class="form-group">
+      <label>Build History</label>
+      <div id="editHistory" class="edit-history"><div class="no-builds">Loading...</div></div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="previewEditCron()">Preview Cron</button>
@@ -1155,6 +1183,21 @@ export function getDashboardHtml(): string {
   </div>
 </div>
 
+<!-- Generic Dialog Modal (input / confirm) -->
+<div class="modal-overlay" id="dialogModal">
+  <div class="modal" style="max-width: 440px;">
+    <h2 id="dialogTitle"></h2>
+    <p class="confirm-text" id="dialogMessage" style="margin-bottom: 12px;"></p>
+    <div id="dialogInputWrap" style="display:none;">
+      <input id="dialogInput" type="text" style="width:100%;padding:8px 10px;background:#0a0a0a;border:1px solid #404040;border-radius:6px;color:#e5e5e5;font-size:14px;" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="dialogCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="dialogConfirmBtn">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- Gmail Connect Modal -->
 <div class="modal-overlay" id="gmailModal">
   <div class="modal" style="max-width: 460px;">
@@ -1218,32 +1261,12 @@ export function getDashboardHtml(): string {
     </div>
   </div>
 </div>
-
-<!-- Session Detail Modal -->
-<div class="modal-overlay" id="sessionDetailModal">
-  <div class="modal modal-lg">
-    <h2 id="sessionDetailTitle">Session Detail</h2>
-    <div id="sessionDetailMeta"></div>
-    <div id="sessionDetailBody"></div>
-    <div id="resumeCmdWrap" style="background:#0f0f0f;border:1px solid #262626;border-radius:6px;padding:8px 12px;margin-top:16px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="min-width:0;flex:1;overflow:hidden;">
-          <code style="font-size:12px;color:#a3a3a3;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="resumeCmdText"></code>
-        </div>
-        <button class="btn btn-sm" onclick="copyResumeCmd()" id="copyResumeBtn" style="flex-shrink:0;">복사</button>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" id="resumeBtn" onclick="resumeSession()" style="margin-right:auto;">Resume in Terminal</button>
-      <button class="btn" onclick="closeModal('sessionDetailModal')">Close</button>
-    </div>
-  </div>
-</div>
-
 <script>
 let schedules = [];
+let groups = [];
 let deleteTarget = null;
 let buildHistoryCache = {};
+let viewMode = (typeof localStorage !== 'undefined' && localStorage.getItem('viewMode')) || 'card'; // 'card' | 'list'
 let gmailConnected = false;
 let gmailEmail = null;
 let slackConnected = false;
@@ -1266,7 +1289,12 @@ async function api(path, opts = {}) {
 
 async function loadSchedules() {
   try {
-    schedules = await api('/api/schedules');
+    const [scheds, grps] = await Promise.all([
+      api('/api/schedules'),
+      api('/api/groups'),
+    ]);
+    schedules = scheds;
+    groups = grps;
     render();
     loadAllBuildHistories();
   } catch (err) {
@@ -1292,6 +1320,9 @@ async function loadBuildHistory(name) {
 }
 
 function renderBuildHistory(name, data) {
+  // list 모드 latest indicator도 항상 갱신 (카드 모드 컨테이너 없을 수 있음)
+  renderLatestRun(name, data);
+
   const el = document.getElementById('history-' + CSS.escape(name));
   if (!el) return;
 
@@ -1300,23 +1331,40 @@ function renderBuildHistory(name, data) {
     return;
   }
 
+  const TIMEOUT_MS = 60 * 60 * 1000; // 1시간
   let html = '<ul class="build-list">';
   for (const run of data.runs) {
     const time = formatTime(run.startedAt);
     const isRunning = run.status === 'running';
+    const elapsed = Date.now() - new Date(run.startedAt).getTime();
+    const isTimeout = isRunning && elapsed > TIMEOUT_MS;
+    const displayStatus = isTimeout ? 'timeout' : run.status;
     const dur = isRunning
-      ? formatDuration(Date.now() - new Date(run.startedAt).getTime())
+      ? formatDuration(elapsed)
       : (run.durationMs !== null ? formatDuration(run.durationMs) : '...');
-    const clickFn = isRunning ? 'openLiveOutput' : 'viewRunDetail';
+    const clickFn = isRunning && !isTimeout ? 'openLiveOutput' : 'viewRunDetail';
     const cancelBtn = isRunning
       ? '<span class="build-cancel" onclick="event.stopPropagation();cancelRunByKey(\\'' + escapeAttr(name) + '\\',' + run.number + ')" title="Cancel">✕</span>'
       : '';
+    let dotHtml;
+    if (isTimeout) {
+      dotHtml = '<span class="build-dot timeout" title="1시간 초과 타임아웃"></span>';
+    } else if (isRunning) {
+      dotHtml = '<span class="build-dot running"><span class="spinner-sm"></span></span>';
+    } else {
+      dotHtml = '<span class="build-dot ' + displayStatus + '"></span>';
+    }
+    const durHtml = isTimeout
+      ? '<span style="color:#f97316;font-weight:600;">TIMEOUT ' + escapeHtml(dur) + '</span>'
+      : (isRunning ? '<span class="running-text">' + escapeHtml(dur) + '</span>' : escapeHtml(dur));
+    const costHtml = run.costUsd ? '<span class="build-cost">$' + run.costUsd.toFixed(4) + '</span>' : '';
     html += '<li class="build-item" onclick="' + clickFn + '(\\'' + escapeAttr(name) + '\\',' + run.number + ')">' +
-      (isRunning ? '<span class="build-dot running"><span class="spinner-sm"></span></span>' : '<span class="build-dot ' + run.status + '"></span>') +
+      dotHtml +
       '<span class="build-number">#' + run.number + '</span>' +
       '<span class="build-trigger">' + run.trigger + '</span>' +
       '<span class="build-time">' + escapeHtml(time) + '</span>' +
-      '<span class="build-duration">' + (isRunning ? '<span class="running-text">' + escapeHtml(dur) + '</span>' : escapeHtml(dur)) + '</span>' +
+      '<span class="build-duration">' + durHtml + '</span>' +
+      costHtml +
       cancelBtn +
     '</li>';
   }
@@ -1328,6 +1376,32 @@ function renderBuildHistory(name, data) {
   }
 
   el.innerHTML = html;
+}
+
+function renderLatestRun(name, data) {
+  const el = document.getElementById('latest-' + CSS.escape(name));
+  if (!el) return;
+  if (!data.runs || data.runs.length === 0) {
+    el.innerHTML = '<span class="row-latest-empty">—</span>';
+    return;
+  }
+  const run = data.runs[0];
+  const TIMEOUT_MS = 60 * 60 * 1000;
+  const isRunning = run.status === 'running';
+  const elapsed = Date.now() - new Date(run.startedAt).getTime();
+  const isTimeout = isRunning && elapsed > TIMEOUT_MS;
+  const status = isTimeout ? 'timeout' : run.status;
+  const clickFn = isRunning && !isTimeout ? 'openLiveOutput' : 'viewRunDetail';
+  let dotHtml;
+  if (isTimeout) dotHtml = '<span class="build-dot timeout"></span>';
+  else if (isRunning) dotHtml = '<span class="build-dot running"><span class="spinner-sm"></span></span>';
+  else dotHtml = '<span class="build-dot ' + status + '"></span>';
+  const time = formatTime(run.startedAt);
+  el.innerHTML =
+    '<span class="row-latest-item" onclick="event.stopPropagation();' + clickFn + '(\\'' + name.replace(/'/g, "\\'") + '\\',' + run.number + ')" title="#' + run.number + ' · ' + status + '">' +
+      dotHtml +
+      '<span class="row-latest-time">' + escapeHtml(time) + '</span>' +
+    '</span>';
 }
 
 function formatTime(iso) {
@@ -1437,39 +1511,435 @@ function renderDiff(oldPrompt, newPrompt) {
   return html;
 }
 
+function renderCard(s) {
+  const dir = s.workDir.replace(/^\\/Users\\/[^/]+/, '~');
+  const enabled = s.enabled !== false;
+  return '<div class="card' + (enabled ? '' : ' disabled') + '"' +
+    ' draggable="true"' +
+    ' data-schedule-name="' + escapeAttr(s.name) + '"' +
+    ' ondragstart="onCardDragStart(event, \\'' + escapeAttr(s.name) + '\\')"' +
+    ' ondragend="onCardDragEnd(event)"' +
+    '>' +
+    '<div class="card-header">' +
+      '<div class="card-name">' + escapeHtml(s.name) + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<label class="toggle-switch" title="' + (enabled ? '활성' : '비활성') + '">' +
+          '<input type="checkbox"' + (enabled ? ' checked' : '') + ' onchange="toggleSchedule(\\'' + escapeAttr(s.name) + '\\')">' +
+          '<span class="toggle-slider"></span>' +
+        '</label>' +
+        '<button class="btn-run" onclick="runSchedule(\\'' + escapeAttr(s.name) + '\\')"' + (enabled ? '' : ' disabled style="opacity:0.5;cursor:not-allowed"') + '>Run</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="card-field"><span class="label">Schedule:</span>' + escapeHtml(s.at) + '</div>' +
+    '<div class="card-field"><span class="label">Cron:</span><code>' + escapeHtml(s.cron) + '</code></div>' +
+    '<div class="card-field"><span class="label">Dir:</span>' + escapeHtml(dir) + '</div>' +
+    ((s.useGmail || s.useSlack) ? '<div class="card-field">' + (s.useGmail ? '<span class="gmail-badge">Gmail</span> ' : '') + (s.useSlack ? '<span class="slack-badge">Slack</span>' : '') + '</div>' : '') +
+    '<div class="card-prompt" onclick="viewPrompt(\\'' + escapeAttr(s.name) + '\\')">' + escapeHtml(s.prompt) + '</div>' +
+    '<a class="prompt-history-link" onclick="viewPromptHistory(\\'' + escapeAttr(s.name) + '\\')">Prompt History</a>' +
+    '<div class="build-history">' +
+      '<div class="build-history-header">' +
+        '<span class="section-label">Build History</span>' +
+      '</div>' +
+      '<div id="history-' + escapeHtml(s.name) + '"><div class="no-builds">Loading...</div></div>' +
+    '</div>' +
+    '<div class="card-footer">' +
+      '<button class="btn btn-sm" onclick="openEditModal(\\'' + escapeAttr(s.name) + '\\')">Edit</button>' +
+      '<button class="btn btn-sm" onclick="viewLogs(\\'' + escapeAttr(s.name) + '\\')">Logs</button>' +
+      '<button class="btn btn-sm btn-danger" onclick="askDelete(\\'' + escapeAttr(s.name) + '\\')">Delete</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function schedulesInGroup(groupId) {
+  const inGroup = schedules.filter(s => (s.groupId || null) === groupId);
+  return inGroup.sort((a, b) => {
+    const ao = (a.order == null) ? 1e9 : a.order;
+    const bo = (b.order == null) ? 1e9 : b.order;
+    if (ao !== bo) return ao - bo;
+    return (a.createdAt || '').localeCompare(b.createdAt || '');
+  });
+}
+
+function renderRow(s) {
+  const enabled = s.enabled !== false;
+  const group = s.groupId ? groups.find(g => g.id === s.groupId) : null;
+  const dot = group ? group.color : '#404040';
+  return '<div class="row' + (enabled ? '' : ' disabled') + '"' +
+    ' draggable="true"' +
+    ' data-schedule-name="' + escapeAttr(s.name) + '"' +
+    ' ondragstart="onCardDragStart(event, \\'' + escapeAttr(s.name) + '\\')"' +
+    ' ondragend="onCardDragEnd(event)"' +
+    ' onclick="onRowClick(event, \\'' + escapeAttr(s.name) + '\\')"' +
+    '>' +
+    '<span class="row-handle" aria-hidden="true">⋮⋮</span>' +
+    '<span class="row-dot" style="background:' + dot + ';"></span>' +
+    '<div class="row-name">' + escapeHtml(s.name) + '</div>' +
+    '<div class="row-at">' + escapeHtml(s.at) + '</div>' +
+    '<div class="row-latest" id="latest-' + escapeHtml(s.name) + '"></div>' +
+    '<div class="row-actions" onclick="event.stopPropagation()">' +
+      '<label class="toggle-switch" title="' + (enabled ? '활성' : '비활성') + '">' +
+        '<input type="checkbox"' + (enabled ? ' checked' : '') + ' onchange="toggleSchedule(\\'' + escapeAttr(s.name) + '\\')">' +
+        '<span class="toggle-slider"></span>' +
+      '</label>' +
+      '<button class="btn-run" onclick="runSchedule(\\'' + escapeAttr(s.name) + '\\')"' + (enabled ? '' : ' disabled style="opacity:0.5;cursor:not-allowed"') + '>Run</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function onRowClick(e, name) {
+  // 인터랙티브 요소 위 클릭은 무시 (이벤트 위임 안전망)
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'button' || tag === 'input' || tag === 'label' || e.target.closest('.row-actions')) return;
+  openEditModal(name);
+}
+
+function renderLane(group) {
+  const id = group ? group.id : '';
+  const name = group ? group.name : '미분류';
+  const color = group ? group.color : '#525252';
+  const isUnsorted = !group;
+  const items = schedulesInGroup(group ? group.id : null);
+
+  const draggable = !isUnsorted;
+  const header =
+    '<div class="lane-header"' +
+      (draggable ? ' draggable="true"' +
+        ' ondragstart="onGroupDragStart(event, \\'' + escapeAttr(id) + '\\')"' +
+        ' ondragend="onGroupDragEnd(event)"' +
+        ' ondragover="onGroupHeaderDragOver(event)"' +
+        ' ondrop="onGroupHeaderDrop(event, \\'' + escapeAttr(id) + '\\')"'
+        : '') +
+      '>' +
+      '<span class="lane-dot" style="background:' + color + ';"></span>' +
+      '<span class="lane-name">' + escapeHtml(name) + '</span>' +
+      '<span class="lane-count">' + items.length + '</span>' +
+      (isUnsorted ? '' :
+        '<div class="lane-actions">' +
+          '<button class="btn btn-sm" onclick="askRenameGroup(\\'' + escapeAttr(id) + '\\')">이름 변경</button>' +
+          '<button class="btn btn-sm btn-danger" onclick="askDeleteGroup(\\'' + escapeAttr(id) + '\\')">삭제</button>' +
+        '</div>') +
+    '</div>';
+
+  const bodyAttrs =
+    ' data-group-id="' + escapeAttr(id) + '"' +
+    ' ondragover="onLaneDragOver(event)"' +
+    ' ondragleave="onLaneDragLeave(event)"' +
+    ' ondrop="onLaneDrop(event, \\'' + escapeAttr(id) + '\\')"';
+
+  const bodyClass = viewMode === 'list' ? 'lane-body lane-list' : 'lane-body';
+  const renderItem = viewMode === 'list' ? renderRow : renderCard;
+
+  let body;
+  if (items.length === 0) {
+    body = '<div class="' + bodyClass + ' lane-empty"' + bodyAttrs + '>' +
+      '<div class="lane-empty-hint">' + (isUnsorted ? '여기로 카드를 끌어다 그룹을 비울 수 있어요' : '카드를 끌어다 놓으세요') + '</div>' +
+    '</div>';
+  } else {
+    body = '<div class="' + bodyClass + '"' + bodyAttrs + '>' +
+      items.map(renderItem).join('') +
+    '</div>';
+  }
+
+  return '<section class="lane">' + header + body + '</section>';
+}
+
+function syncViewToggle() {
+  document.querySelectorAll('#viewToggle .view-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-view') === viewMode);
+  });
+}
+
 function render() {
+  syncViewToggle();
   const el = document.getElementById('content');
-  if (schedules.length === 0) {
-    el.innerHTML = '<div class="empty-state"><p>No schedules yet.</p><p>Click "+ Add Schedule" to create one.</p></div>';
+  if (schedules.length === 0 && groups.length === 0) {
+    el.innerHTML = '<div class="empty-state"><p>아직 스케줄이 없습니다.</p><p>"+ Add Schedule"로 추가하거나 "+ 그룹 추가"로 그룹을 먼저 만들어보세요.</p>' +
+      '<button class="btn btn-primary" style="margin-top:12px;" onclick="askAddGroup()">+ 그룹 추가</button></div>';
     return;
   }
 
-  el.innerHTML = '<div class="grid">' + schedules.map(s => {
-    const dir = s.workDir.replace(/^\\/Users\\/[^/]+/, '~');
-    return '<div class="card">' +
-      '<div class="card-header">' +
-        '<div class="card-name">' + escapeHtml(s.name) + '</div>' +
-        '<button class="btn-run" onclick="runSchedule(\\'' + escapeAttr(s.name) + '\\')">Run</button>' +
-      '</div>' +
-      '<div class="card-field"><span class="label">Schedule:</span>' + escapeHtml(s.at) + '</div>' +
-      '<div class="card-field"><span class="label">Cron:</span><code>' + escapeHtml(s.cron) + '</code></div>' +
-      '<div class="card-field"><span class="label">Dir:</span>' + escapeHtml(dir) + '</div>' +
-      ((s.useGmail || s.useSlack) ? '<div class="card-field">' + (s.useGmail ? '<span class="gmail-badge">Gmail</span> ' : '') + (s.useSlack ? '<span class="slack-badge">Slack</span>' : '') + '</div>' : '') +
-      '<div class="card-prompt" onclick="viewPrompt(\\'' + escapeAttr(s.name) + '\\')">' + escapeHtml(s.prompt) + '</div>' +
-      '<a class="prompt-history-link" onclick="viewPromptHistory(\\'' + escapeAttr(s.name) + '\\')">Prompt History</a>' +
-      '<div class="build-history">' +
-        '<div class="build-history-header">' +
-          '<span class="section-label">Build History</span>' +
-        '</div>' +
-        '<div id="history-' + escapeHtml(s.name) + '"><div class="no-builds">Loading...</div></div>' +
-      '</div>' +
-      '<div class="card-footer">' +
-        '<button class="btn btn-sm" onclick="openEditModal(\\'' + escapeAttr(s.name) + '\\')">Edit</button>' +
-        '<button class="btn btn-sm" onclick="viewLogs(\\'' + escapeAttr(s.name) + '\\')">Logs</button>' +
-        '<button class="btn btn-sm btn-danger" onclick="askDelete(\\'' + escapeAttr(s.name) + '\\')">Delete</button>' +
-      '</div>' +
+  const sortedGroups = [...groups].sort((a, b) => a.order - b.order);
+  const lanesHtml = sortedGroups.map(g => renderLane(g)).join('') + renderLane(null);
+
+  el.innerHTML = lanesHtml +
+    '<div class="lane-add-wrap">' +
+      '<button class="btn" onclick="askAddGroup()">+ 그룹 추가</button>' +
     '</div>';
-  }).join('') + '</div>';
+}
+
+// ── Generic dialog (input / confirm) ──
+function showDialog(opts) {
+  // opts: { title, message, defaultValue?, placeholder?, confirmLabel?, danger?, withInput? }
+  return new Promise((resolve) => {
+    const modal = document.getElementById('dialogModal');
+    document.getElementById('dialogTitle').textContent = opts.title || '';
+    document.getElementById('dialogMessage').textContent = opts.message || '';
+    document.getElementById('dialogMessage').style.display = opts.message ? '' : 'none';
+
+    const inputWrap = document.getElementById('dialogInputWrap');
+    const input = document.getElementById('dialogInput');
+    if (opts.withInput) {
+      inputWrap.style.display = '';
+      input.value = opts.defaultValue || '';
+      input.placeholder = opts.placeholder || '';
+    } else {
+      inputWrap.style.display = 'none';
+    }
+
+    const confirmBtn = document.getElementById('dialogConfirmBtn');
+    const cancelBtn = document.getElementById('dialogCancelBtn');
+    confirmBtn.textContent = opts.confirmLabel || 'OK';
+    confirmBtn.className = 'btn ' + (opts.danger ? 'btn-danger' : 'btn-primary');
+
+    let settled = false;
+    const cleanup = () => {
+      confirmBtn.onclick = null;
+      cancelBtn.onclick = null;
+      input.onkeydown = null;
+      modal.onclick = null;
+      document.removeEventListener('keydown', escHandler);
+      closeModal('dialogModal');
+    };
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+
+    confirmBtn.onclick = () => finish(opts.withInput ? input.value : true);
+    cancelBtn.onclick = () => finish(opts.withInput ? null : false);
+    modal.onclick = (e) => { if (e.target === modal) finish(opts.withInput ? null : false); };
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); confirmBtn.click(); }
+    };
+    const escHandler = (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('active')) {
+        e.preventDefault();
+        finish(opts.withInput ? null : false);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+
+    openModal('dialogModal');
+    if (opts.withInput) {
+      setTimeout(() => { input.focus(); input.select(); }, 0);
+    } else {
+      setTimeout(() => confirmBtn.focus(), 0);
+    }
+  });
+}
+
+function showInputDialog(opts) {
+  return showDialog({ ...opts, withInput: true });
+}
+
+function showConfirmDialog(opts) {
+  return showDialog({ ...opts, withInput: false });
+}
+
+// ── Group management ──
+async function askAddGroup() {
+  const name = await showInputDialog({
+    title: '새 그룹 추가',
+    placeholder: '예: Health, Work, Economic',
+    confirmLabel: '추가',
+  });
+  if (name === null || !name.trim()) return;
+  try {
+    await api('/api/groups', { method: 'POST', body: JSON.stringify({ name: name.trim() }) });
+    await loadSchedules();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function askRenameGroup(id) {
+  const g = groups.find(x => x.id === id);
+  if (!g) return;
+  const name = await showInputDialog({
+    title: '그룹 이름 변경',
+    defaultValue: g.name,
+    confirmLabel: '변경',
+  });
+  if (name === null || !name.trim() || name.trim() === g.name) return;
+  try {
+    await api('/api/groups/' + encodeURIComponent(id), { method: 'PUT', body: JSON.stringify({ name: name.trim() }) });
+    await loadSchedules();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function askDeleteGroup(id) {
+  const g = groups.find(x => x.id === id);
+  if (!g) return;
+  const count = schedules.filter(s => s.groupId === id).length;
+  const msg = count > 0
+    ? '그룹 "' + g.name + '"을(를) 삭제하시겠어요? 소속된 ' + count + '개 스케줄은 미분류로 이동합니다.'
+    : '그룹 "' + g.name + '"을(를) 삭제하시겠어요?';
+  const ok = await showConfirmDialog({
+    title: '그룹 삭제',
+    message: msg,
+    confirmLabel: '삭제',
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    await api('/api/groups/' + encodeURIComponent(id), { method: 'DELETE' });
+    await loadSchedules();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+// ── View mode toggle ──
+function setViewMode(mode) {
+  if (mode !== 'card' && mode !== 'list') return;
+  viewMode = mode;
+  try { localStorage.setItem('viewMode', mode); } catch (e) { /* ignore */ }
+  render();
+  loadAllBuildHistories();
+}
+
+// ── Drag & Drop ──
+let dragState = { kind: null, payload: null }; // kind: 'card' | 'group'
+
+function onCardDragStart(e, name) {
+  dragState = { kind: 'card', payload: name };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', 'card:' + name);
+  // 방해 방지: 카드에 dragging 표시는 다음 tick에 (그래야 ghost가 원본 모습 유지)
+  setTimeout(() => { e.target.classList.add('card-dragging'); }, 0);
+}
+
+function onCardDragEnd(e) {
+  document.querySelectorAll('.card-dragging').forEach(el => el.classList.remove('card-dragging'));
+  document.querySelectorAll('.lane-body.drag-over').forEach(el => el.classList.remove('drag-over'));
+  document.querySelectorAll('.drop-before').forEach(el => el.classList.remove('drop-before'));
+  dragState = { kind: null, payload: null };
+}
+
+function onLaneDragOver(e) {
+  if (dragState.kind !== 'card') return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const body = e.currentTarget;
+  body.classList.add('drag-over');
+  // 가장 가까운 항목 찾아서 drop-before 표시
+  document.querySelectorAll('.drop-before').forEach(el => el.classList.remove('drop-before'));
+  const target = findItemAt(body, e.clientY);
+  if (target) target.classList.add('drop-before');
+}
+
+function onLaneDragLeave(e) {
+  // body 자체에서 완전히 벗어났을 때만 처리
+  if (e.currentTarget.contains(e.relatedTarget)) return;
+  e.currentTarget.classList.remove('drag-over');
+  e.currentTarget.querySelectorAll('.drop-before').forEach(el => el.classList.remove('drop-before'));
+}
+
+function findItemAt(laneBody, clientY) {
+  const items = [...laneBody.querySelectorAll('[data-schedule-name]:not(.card-dragging)')];
+  for (const item of items) {
+    const rect = item.getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) return item;
+  }
+  return null;
+}
+
+async function onLaneDrop(e, groupId) {
+  if (dragState.kind !== 'card') return;
+  e.preventDefault();
+  const body = e.currentTarget;
+  body.classList.remove('drag-over');
+  const name = dragState.payload;
+  const targetItem = body.querySelector('.drop-before');
+  const newGid = groupId || null;
+
+  // 현재 lane 내 항목 이름 순서를 클라이언트에서 계산
+  const remaining = [...body.querySelectorAll('[data-schedule-name]')]
+    .map(el => el.getAttribute('data-schedule-name'))
+    .filter(n => n !== name);
+
+  let insertAt;
+  if (targetItem) {
+    const targetName = targetItem.getAttribute('data-schedule-name');
+    insertAt = remaining.indexOf(targetName);
+    if (insertAt < 0) insertAt = remaining.length;
+  } else {
+    insertAt = remaining.length;
+  }
+  const newOrder = [...remaining];
+  newOrder.splice(insertAt, 0, name);
+
+  // 원래 그룹이 달랐다면 거기서도 제거
+  const sched = schedules.find(s => s.name === name);
+  const prevGid = sched ? (sched.groupId || null) : null;
+
+  try {
+    if (prevGid !== newGid) {
+      await api('/api/schedules/' + encodeURIComponent(name), {
+        method: 'PUT',
+        body: JSON.stringify({ groupId: newGid }),
+      });
+    }
+    await api('/api/schedules/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ groupId: newGid, names: newOrder }),
+    });
+    await loadSchedules();
+  } catch (err) {
+    alert('이동 실패: ' + err.message);
+    await loadSchedules();
+  }
+}
+
+function onGroupDragStart(e, id) {
+  // 카드의 dragstart가 lane-header까지 버블되지 않도록: 카드는 카드 자체에 이벤트 박혀있어 안전.
+  dragState = { kind: 'group', payload: id };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', 'group:' + id);
+  setTimeout(() => { e.currentTarget.closest('.lane').classList.add('lane-dragging'); }, 0);
+}
+
+function onGroupDragEnd(e) {
+  document.querySelectorAll('.lane-dragging').forEach(el => el.classList.remove('lane-dragging'));
+  document.querySelectorAll('.lane-header.drop-target').forEach(el => el.classList.remove('drop-target'));
+  dragState = { kind: null, payload: null };
+}
+
+function onGroupHeaderDragOver(e) {
+  if (dragState.kind !== 'group') return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.lane-header.drop-target').forEach(el => el.classList.remove('drop-target'));
+  e.currentTarget.classList.add('drop-target');
+}
+
+async function onGroupHeaderDrop(e, targetId) {
+  if (dragState.kind !== 'group') return;
+  e.preventDefault();
+  e.stopPropagation();
+  const sourceId = dragState.payload;
+  e.currentTarget.classList.remove('drop-target');
+  if (sourceId === targetId) return;
+
+  const ordered = [...groups].sort((a, b) => a.order - b.order).map(g => g.id);
+  const from = ordered.indexOf(sourceId);
+  const to = ordered.indexOf(targetId);
+  if (from < 0 || to < 0) return;
+  ordered.splice(from, 1);
+  ordered.splice(to, 0, sourceId);
+
+  try {
+    await api('/api/groups/reorder', { method: 'PUT', body: JSON.stringify({ ids: ordered }) });
+    await loadSchedules();
+  } catch (err) {
+    alert('순서 변경 실패: ' + err.message);
+    await loadSchedules();
+  }
 }
 
 function escapeAttr(s) {
@@ -1518,13 +1988,21 @@ async function viewRunDetail(name, number) {
     const endTime = meta.finishedAt ? new Date(meta.finishedAt).toLocaleString() : '-';
     const dur = meta.durationMs !== null ? formatDuration(meta.durationMs) : '-';
 
+    const tokenInfo = (meta.inputTokens || meta.outputTokens)
+      ? '<dt>Tokens</dt><dd>' + ((meta.inputTokens || 0).toLocaleString()) + ' in / ' + ((meta.outputTokens || 0).toLocaleString()) + ' out</dd>'
+      : '';
+    const costInfo = meta.costUsd
+      ? '<dt>Cost</dt><dd style="color:#8b5cf6;font-weight:600;">$' + meta.costUsd.toFixed(4) + '</dd>'
+      : '';
+
     document.getElementById('runDetailMeta').innerHTML =
       '<dt>Status</dt><dd><span class="status-badge ' + statusClass + '">' + meta.status.toUpperCase() + '</span></dd>' +
       '<dt>Trigger</dt><dd>' + escapeHtml(meta.trigger) + '</dd>' +
       '<dt>Started</dt><dd>' + escapeHtml(startTime) + '</dd>' +
       '<dt>Finished</dt><dd>' + escapeHtml(endTime) + '</dd>' +
       '<dt>Duration</dt><dd>' + escapeHtml(dur) + '</dd>' +
-      '<dt>Exit Code</dt><dd>' + (meta.exitCode !== null ? meta.exitCode : '-') + '</dd>';
+      '<dt>Exit Code</dt><dd>' + (meta.exitCode !== null ? meta.exitCode : '-') + '</dd>' +
+      tokenInfo + costInfo;
 
     const outputEl = document.getElementById('runDetailOutput');
     outputEl.innerHTML = colorizeLog(outputData.output || '(no output)');
@@ -1650,7 +2128,78 @@ function openEditModal(name) {
   scb.checked = !!s.useSlack;
   scb.disabled = !slackConnected;
   document.getElementById('editSlackHint').textContent = slackConnected ? '' : '(Connect Slack first)';
+
+  // History: 캐시 즉시 표시 후 최신으로 갱신
+  const histEl = document.getElementById('editHistory');
+  if (buildHistoryCache[name]) {
+    renderEditHistory(name, buildHistoryCache[name]);
+  } else {
+    histEl.innerHTML = '<div class="no-builds">Loading...</div>';
+  }
+  loadEditHistory(name);
+
   openModal('editModal');
+}
+
+async function loadEditHistory(name) {
+  try {
+    const data = await api('/api/schedules/' + encodeURIComponent(name) + '/runs?limit=10');
+    buildHistoryCache[name] = data;
+    // editModal이 열려있고 같은 schedule을 보고 있을 때만 갱신
+    if (document.getElementById('editName').value === name &&
+        document.getElementById('editModal').classList.contains('active')) {
+      renderEditHistory(name, data);
+    }
+    // list 모드 latest dot도 갱신
+    renderLatestRun(name, data);
+  } catch (err) {
+    const el = document.getElementById('editHistory');
+    if (el) el.innerHTML = '<div class="no-builds">Failed: ' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderEditHistory(name, data) {
+  const el = document.getElementById('editHistory');
+  if (!el) return;
+  if (!data.runs || data.runs.length === 0) {
+    el.innerHTML = '<div class="no-builds">No build history yet.</div>';
+    return;
+  }
+  const TIMEOUT_MS = 60 * 60 * 1000;
+  let html = '<ul class="build-list">';
+  for (const run of data.runs) {
+    const time = formatTime(run.startedAt);
+    const isRunning = run.status === 'running';
+    const elapsed = Date.now() - new Date(run.startedAt).getTime();
+    const isTimeout = isRunning && elapsed > TIMEOUT_MS;
+    const status = isTimeout ? 'timeout' : run.status;
+    const dur = isRunning
+      ? formatDuration(elapsed)
+      : (run.durationMs !== null ? formatDuration(run.durationMs) : '...');
+    const clickFn = isRunning && !isTimeout ? 'openLiveOutput' : 'viewRunDetail';
+    let dotHtml;
+    if (isTimeout) dotHtml = '<span class="build-dot timeout"></span>';
+    else if (isRunning) dotHtml = '<span class="build-dot running"><span class="spinner-sm"></span></span>';
+    else dotHtml = '<span class="build-dot ' + status + '"></span>';
+    const durHtml = isTimeout
+      ? '<span style="color:#f97316;font-weight:600;">TIMEOUT ' + escapeHtml(dur) + '</span>'
+      : (isRunning ? '<span class="running-text">' + escapeHtml(dur) + '</span>' : escapeHtml(dur));
+    const costHtml = run.costUsd ? '<span class="build-cost">$' + run.costUsd.toFixed(4) + '</span>' : '';
+    html += '<li class="build-item" onclick="closeModal(\\'editModal\\');' + clickFn + '(\\'' + name.replace(/'/g, "\\\\'") + '\\',' + run.number + ')">' +
+      dotHtml +
+      '<span class="build-number">#' + run.number + '</span>' +
+      '<span class="build-trigger">' + run.trigger + '</span>' +
+      '<span class="build-time">' + escapeHtml(time) + '</span>' +
+      '<span class="build-duration">' + durHtml + '</span>' +
+      costHtml +
+    '</li>';
+  }
+  html += '</ul>';
+  if (data.total > data.runs.length) {
+    html += '<div style="margin-top:6px;color:#737373;font-size:11px;">' +
+      data.total + ' runs total — 최근 ' + data.runs.length + '건 표시</div>';
+  }
+  el.innerHTML = html;
 }
 
 async function previewEditCron() {
@@ -1703,6 +2252,20 @@ let activeRuns = {}; // 'name:number' -> { runId }
 let liveEs = null;   // EventSource for live output modal
 let pollTimer = null; // polling timer for active runs
 let currentLiveRunKey = null; // 'name:number' of the run shown in live modal
+
+async function toggleSchedule(name) {
+  try {
+    await api('/api/schedules/' + encodeURIComponent(name) + '/toggle', { method: 'POST' });
+    await loadSchedules();
+    render();
+    loadAllBuildHistories();
+  } catch (e) {
+    alert('Toggle failed: ' + e.message);
+    await loadSchedules();
+    render();
+    loadAllBuildHistories();
+  }
+}
 
 async function runSchedule(name) {
   try {
@@ -1918,8 +2481,8 @@ function closeModal(id) {
   if (id === 'runModal' && liveEs) { liveEs.close(); liveEs = null; }
 }
 
-// Close modal on overlay click (except form modals)
-const formModals = new Set(['addModal', 'editModal', 'gmailModal', 'slackModal']);
+// Close modal on overlay click (except form modals — dialogModal handles overlay itself)
+const formModals = new Set(['addModal', 'editModal', 'gmailModal', 'slackModal', 'dialogModal']);
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay && !formModals.has(overlay.id)) {
@@ -2248,341 +2811,6 @@ async function restorePromptVersion(name, number) {
     await api('/api/schedules/' + encodeURIComponent(name) + '/prompts/' + number + '/restore', { method: 'POST' });
     closeModal('promptHistoryModal');
     await loadSchedules();
-  } catch (err) {
-    alert('Error: ' + err.message);
-  }
-}
-
-// ── Tab Navigation ──
-function switchTab(tab) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + tab).style.display = '';
-  event.target.closest ? document.querySelector('.tab-btn[onclick*="' + tab + '"]').classList.add('active') : null;
-  if (tab === 'console') initConsole();
-}
-
-// ── Console ──
-let consoleSessions = [];
-const hiddenSessions = new Set();
-const collapsedGroups = new Set(['ended']);
-let consoleEs = null;
-let consoleInitialized = false;
-
-function initConsole() {
-  if (!consoleInitialized) {
-    consoleInitialized = true;
-    connectConsoleStream();
-  }
-}
-
-function connectConsoleStream() {
-  if (consoleEs) consoleEs.close();
-  consoleEs = new EventSource('/api/console/stream');
-
-  consoleEs.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'init') {
-      consoleSessions = msg.sessions;
-    } else if (msg.type === 'update') {
-      const idx = consoleSessions.findIndex(s => s.sessionId === msg.session.sessionId);
-      if (idx >= 0) consoleSessions[idx] = msg.session;
-      else consoleSessions.unshift(msg.session);
-      // 최근 활동 순 정렬
-      consoleSessions.sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
-    }
-    renderConsole();
-    updateSessionBadge();
-  };
-
-  consoleEs.onerror = () => {
-    // 재연결은 EventSource가 자동으로 처리
-  };
-}
-
-function updateSessionBadge() {
-  const active = consoleSessions.filter(s => !hiddenSessions.has(s.sessionId) && (s.status === 'active' || s.status === 'idle')).length;
-  const badge = document.getElementById('activeSessionBadge');
-  badge.textContent = active;
-  badge.className = 'badge' + (active === 0 ? ' zero' : '');
-}
-
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const sec = Math.floor(diff / 1000);
-  if (sec < 60) return sec + '초 전';
-  const min = Math.floor(sec / 60);
-  if (min < 60) return min + '분 전';
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return hr + '시간 전';
-  const d = Math.floor(hr / 24);
-  return d + '일 전';
-}
-
-function shortSessionId(id) {
-  if (!id) return '—';
-  return id.length > 12 ? id.slice(0, 8) + '...' : id;
-}
-
-function shortenPath(p) {
-  if (!p) return '—';
-  const home = '~';
-  // 서버에서 이미 full path로 올 수 있으므로 표시용으로 축약
-  return p.replace(/^\\/Users\\/[^/]+/, home);
-}
-
-function renderConsole() {
-  const el = document.getElementById('console-content');
-  if (consoleSessions.length === 0) {
-    el.innerHTML = '<div class="console-empty"><p>활성 세션 없음</p><p style="font-size:13px;">Claude Code를 실행하면 여기에 표시됩니다.<br><code style="color:#d4a574;">claude-schedule setup-hooks</code>로 hook을 먼저 설정하세요.</p></div>';
-    return;
-  }
-
-  // 그룹 분류 (숨긴 세션 제외)
-  const visible = consoleSessions.filter(s => !hiddenSessions.has(s.sessionId));
-  if (visible.length === 0) {
-    el.innerHTML = '<div class="console-empty"><p>활성 세션 없음</p><p style="font-size:13px;">Claude Code를 실행하면 여기에 표시됩니다.<br><code style="color:#d4a574;">claude-schedule setup-hooks</code>로 hook을 먼저 설정하세요.</p></div>';
-    return;
-  }
-  const groups = { active: [], idle: [], ended: [] };
-  for (const s of visible) {
-    (groups[s.status] || groups.ended).push(s);
-  }
-
-  const groupLabels = {
-    active: '활성',
-    idle: '대기',
-    ended: '종료',
-  };
-
-  let html = '<div class="console-toolbar">' +
-    '<span class="section-label">Sessions (' + consoleSessions.length + ')</span>' +
-    '<button class="btn btn-sm btn-danger" onclick="clearConsoleSessions()">Clear All</button>' +
-    '</div>';
-
-  for (const key of ['active', 'idle', 'ended']) {
-    const list = groups[key];
-    if (list.length === 0) continue;
-
-    const isCollapsed = collapsedGroups.has(key);
-
-    html += '<div class="session-group">' +
-      '<div class="session-group-header" onclick="toggleGroup(\\'' + key + '\\')">' +
-        '<span class="chevron' + (isCollapsed ? ' collapsed' : '') + '">&#9660;</span>' +
-        '<span class="status-dot ' + key + '"></span> ' +
-        groupLabels[key] +
-        ' <span class="group-count">(' + list.length + ')</span>' +
-      '</div>';
-
-    if (isCollapsed) {
-      html += '</div>';
-      continue;
-    }
-
-    html += '<table class="session-table">' +
-      '<colgroup><col style="width:22%"><col style="width:22%"><col style="width:32%"><col style="width:8%"><col style="width:12%"><col style="width:4%"></colgroup>' +
-      '<thead><tr>' +
-        '<th>제목</th>' +
-        '<th>디렉토리</th>' +
-        '<th>요약</th>' +
-        '<th style="text-align:center">프롬프트</th>' +
-        '<th style="text-align:right">활동</th>' +
-        '<th></th>' +
-      '</tr></thead><tbody>';
-
-    for (const s of list) {
-      const displayName = s.title || shortSessionId(s.sessionId);
-      const desc = s.summary || (s.prompts && s.prompts.length > 0 ? s.prompts[s.prompts.length - 1].prompt : '');
-
-      html += '<tr class="session-row-' + s.status + '">' +
-        '<td onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')"><div class="session-title-cell">' +
-          '<span class="session-title-text" title="' + escapeAttr(displayName) + '">' + escapeHtml(displayName) + '</span>' +
-        '</div></td>' +
-        '<td onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')"><span class="session-dir-cell" title="' + escapeAttr(s.cwd) + '">' + escapeHtml(shortenPath(s.cwd)) + '</span></td>' +
-        '<td onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')"><span class="session-summary-cell" title="' + escapeAttr(desc) + '">' + escapeHtml(desc) + '</span></td>' +
-        '<td class="session-count-cell" onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')">' + (s.prompts ? s.prompts.length : 0) + '</td>' +
-        '<td class="session-time-cell" onclick="openSessionDetail(\\'' + escapeAttr(s.sessionId) + '\\')">' + timeAgo(s.lastActivityAt) + '</td>' +
-        '<td style="text-align:center;padding:8px 4px;"><button class="btn-dismiss" onclick="dismissSession(\\'' + escapeAttr(s.sessionId) + '\\')" title="숨기기">&times;</button></td>' +
-      '</tr>';
-    }
-
-    html += '</tbody></table></div>';
-  }
-
-  el.innerHTML = html;
-}
-
-async function openSessionDetail(sessionId) {
-  let session;
-  try {
-    session = await api('/api/console/sessions/' + encodeURIComponent(sessionId));
-  } catch {
-    alert('세션을 불러올 수 없습니다.');
-    return;
-  }
-
-  const modal = document.getElementById('sessionDetailModal');
-  const displayTitle = session.title || shortSessionId(session.sessionId);
-  document.getElementById('sessionDetailTitle').innerHTML =
-    '<span class="status-dot ' + session.status + '" style="display:inline-block;vertical-align:middle;margin-right:8px;"></span>' +
-    escapeHtml(displayTitle) +
-    '<span style="font-size:13px;color:#737373;margin-left:12px;">' + session.status + '</span>';
-
-  // 세션 ID를 모달에 저장 (재요약용)
-  modal.dataset.sessionId = session.sessionId;
-
-  let meta = '<div style="font-size:13px;color:#a3a3a3;margin-bottom:16px;">' +
-    '<div><span style="color:#525252;">세션:</span> <span style="font-family:monospace;font-size:11px;">' + escapeHtml(session.sessionId) + '</span></div>' +
-    '<div><span style="color:#525252;">디렉토리:</span> ' + escapeHtml(shortenPath(session.cwd)) + '</div>' +
-    (session.model ? '<div><span style="color:#525252;">모델:</span> ' + escapeHtml(session.model) + '</div>' : '') +
-    '<div><span style="color:#525252;">시작:</span> ' + new Date(session.startedAt).toLocaleString('ko-KR') + '</div>' +
-    '<div><span style="color:#525252;">마지막 활동:</span> ' + timeAgo(session.lastActivityAt) + '</div>' +
-    (session.endReason ? '<div><span style="color:#525252;">종료 사유:</span> ' + escapeHtml(session.endReason) + '</div>' : '') +
-    '</div>';
-
-  document.getElementById('sessionDetailMeta').innerHTML = meta;
-
-  // resume 커맨드 텍스트 업데이트
-  const resumeCmd = 'cd ' + session.cwd + ' && claude --resume ' + session.sessionId;
-  document.getElementById('resumeCmdText').textContent = resumeCmd;
-
-  // 요약 영역
-  let summaryHtml = '<div style="margin-bottom:16px;">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-      '<span class="section-label">요약</span>' +
-      '<button class="btn btn-sm" id="summarizeBtn" data-old-title="' + escapeAttr(session.title || '') + '" onclick="requestSummarize()">' + (session.title ? '재요약' : '요약 생성') + '</button>' +
-    '</div>';
-  if (session.summary) {
-    summaryHtml += '<div style="background:#1a1a1a;border:1px solid #262626;border-radius:6px;padding:10px 12px;font-size:13px;line-height:1.8;color:#d4d4d4;white-space:pre-wrap;word-break:break-word;">' +
-      escapeHtml(session.summary) + '</div>';
-  } else {
-    summaryHtml += '<div style="color:#525252;font-size:13px;">아직 요약이 생성되지 않았습니다.</div>';
-  }
-  summaryHtml += '</div>';
-
-  // 프롬프트 목록
-  let promptsHtml = '';
-  if (session.prompts && session.prompts.length > 0) {
-    promptsHtml = '<div class="section-label" style="margin-bottom:8px;">프롬프트 히스토리 (' + session.prompts.length + ')</div>' +
-      '<ul class="session-detail-prompts">';
-    for (const p of session.prompts) {
-      promptsHtml += '<li>' +
-        '<div class="prompt-time">' + new Date(p.submittedAt).toLocaleString('ko-KR') + '</div>' +
-        '<div class="prompt-text">' + escapeHtml(p.prompt) + '</div>' +
-        '</li>';
-    }
-    promptsHtml += '</ul>';
-  }
-
-  // 마지막 응답
-  let responseHtml = '';
-  if (session.lastAssistantMessage) {
-    const msg = session.lastAssistantMessage.length > 2000
-      ? session.lastAssistantMessage.slice(0, 2000) + '...'
-      : session.lastAssistantMessage;
-    responseHtml = '<div class="section-label" style="margin:16px 0 8px;">마지막 응답</div>' +
-      '<div class="session-last-response">' + escapeHtml(msg) + '</div>';
-  }
-
-  document.getElementById('sessionDetailBody').innerHTML = summaryHtml + promptsHtml + responseHtml;
-
-  // ended 세션은 Resume 숨김
-  const resumeBtn = document.getElementById('resumeBtn');
-  const isEnded = session.status === 'ended';
-  resumeBtn.style.display = isEnded ? 'none' : '';
-  document.getElementById('resumeCmdWrap').style.display = isEnded ? 'none' : '';
-
-  modal.classList.add('active');
-}
-
-async function resumeSession() {
-  const modal = document.getElementById('sessionDetailModal');
-  const sessionId = modal.dataset.sessionId;
-  if (!sessionId) return;
-
-  const btn = document.getElementById('resumeBtn');
-  btn.textContent = '터미널 열는 중...';
-  btn.disabled = true;
-
-  try {
-    await api('/api/console/sessions/' + encodeURIComponent(sessionId) + '/resume', { method: 'POST' });
-    btn.textContent = 'Resume in Terminal';
-    btn.disabled = false;
-    closeModal('sessionDetailModal');
-  } catch (err) {
-    btn.textContent = 'Resume in Terminal';
-    btn.disabled = false;
-    alert('Error: ' + err.message);
-  }
-}
-
-function copyResumeCmd() {
-  const text = document.getElementById('resumeCmdText').textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('copyResumeBtn');
-    btn.textContent = '복사됨';
-    setTimeout(() => { btn.textContent = '복사'; }, 1500);
-  });
-}
-
-async function requestSummarize() {
-  const modal = document.getElementById('sessionDetailModal');
-  const sessionId = modal.dataset.sessionId;
-  if (!sessionId) return;
-
-  const btn = document.getElementById('summarizeBtn');
-  const oldTitle = btn.getAttribute('data-old-title') || '';
-  btn.textContent = '생성 중...';
-  btn.disabled = true;
-
-  try {
-    await api('/api/console/sessions/' + encodeURIComponent(sessionId) + '/summarize', { method: 'POST' });
-    // 요약은 백그라운드에서 실행됨. 폴링으로 결과 확인
-    let attempts = 0;
-    const poll = setInterval(async () => {
-      attempts++;
-      try {
-        const updated = await api('/api/console/sessions/' + encodeURIComponent(sessionId));
-        // 새 title이 생겼거나(기존과 다르면) 타임아웃이면 종료
-        if ((updated.title && updated.title !== oldTitle) || attempts >= 15) {
-          clearInterval(poll);
-          openSessionDetail(sessionId);
-        }
-      } catch {
-        clearInterval(poll);
-        btn.textContent = '요약 실패';
-        btn.disabled = false;
-      }
-    }, 2000);
-  } catch (err) {
-    btn.textContent = '요약 실패';
-    btn.disabled = false;
-    alert('Error: ' + err.message);
-  }
-}
-
-function toggleGroup(key) {
-  if (collapsedGroups.has(key)) {
-    collapsedGroups.delete(key);
-  } else {
-    collapsedGroups.add(key);
-  }
-  renderConsole();
-}
-
-function dismissSession(sessionId) {
-  hiddenSessions.add(sessionId);
-  renderConsole();
-  updateSessionBadge();
-}
-
-async function clearConsoleSessions() {
-  if (!confirm('모든 세션 데이터를 삭제하시겠습니까?')) return;
-  try {
-    await api('/api/console/sessions', { method: 'DELETE' });
-    consoleSessions = [];
-    renderConsole();
-    updateSessionBadge();
   } catch (err) {
     alert('Error: ' + err.message);
   }

@@ -1,7 +1,5 @@
 import { getSchedule, removeSchedule } from "../lib/config";
-import { unload } from "../lib/launchctl";
-import { deletePlist } from "../lib/plist";
-import { plistPath } from "../lib/paths";
+import { unregisterSchedule } from "../lib/platform";
 
 export function removeCommand(name: string): void {
   const schedule = getSchedule(name);
@@ -11,8 +9,7 @@ export function removeCommand(name: string): void {
   }
 
   try {
-    unload(plistPath(name));
-    deletePlist(name);
+    unregisterSchedule(schedule);
     removeSchedule(name);
     console.log(`Schedule "${name}" removed.`);
   } catch (err) {

@@ -7,16 +7,15 @@ import { removeCommand } from "./commands/remove";
 import { logsCommand } from "./commands/logs";
 import { runCommand } from "./commands/run";
 import { uiCommand } from "./commands/ui";
+import { toggleCommand } from "./commands/toggle";
 import { runWrappedCommand } from "./commands/run-wrapped";
-import { consoleHookCommand } from "./hooks/console-hook";
-import { setupHooksCommand } from "./commands/setup-hooks";
-import { consoleSummarizeCommand } from "./commands/console-summarize";
+import { notionSetupCommand, notionInitCommand, notionStatusCommand } from "./commands/notion";
 
 const program = new Command();
 
 program
   .name("claude-schedule")
-  .description("Manage scheduled Claude Code tasks via macOS launchd")
+  .description("Manage scheduled Claude Code tasks (macOS launchd / Windows Task Scheduler)")
   .version("1.0.0");
 
 program
@@ -44,6 +43,11 @@ program
   .action(logsCommand);
 
 program
+  .command("toggle <name>")
+  .description("Toggle a schedule on/off")
+  .action(toggleCommand);
+
+program
   .command("run <name>")
   .description("Run a scheduled task immediately")
   .action(runCommand);
@@ -59,19 +63,27 @@ program
   .description("(internal) Run a schedule with history tracking — used by launchd")
   .action(runWrappedCommand);
 
-program
-  .command("_console-hook")
-  .description("(internal) Receive Claude Code hook events via stdin")
-  .action(consoleHookCommand);
+const notion = program
+  .command("notion")
+  .description("Notion 연동 관리");
 
-program
-  .command("_console-summarize <sessionId>")
-  .description("(internal) Generate title and summary for a console session")
-  .action(consoleSummarizeCommand);
+notion
+  .command("setup")
+  .description("Notion 연결 설정")
+  .requiredOption("--token <token>", "Notion Integration Token")
+  .requiredOption("--schedule-db <id>", "Schedules Database ID")
+  .requiredOption("--run-history-db <id>", "Run History Database ID")
+  .action(notionSetupCommand);
 
-program
-  .command("setup-hooks")
-  .description("Configure Claude Code hooks for console monitoring")
-  .action(setupHooksCommand);
+notion
+  .command("init")
+  .description("기존 스케줄 및 히스토리를 Notion에 동기화")
+  .option("--history-only", "히스토리만 동기화")
+  .action(notionInitCommand);
+
+notion
+  .command("status")
+  .description("Notion 연결 상태 확인")
+  .action(notionStatusCommand);
 
 program.parse();

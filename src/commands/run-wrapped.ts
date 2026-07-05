@@ -1,7 +1,8 @@
 import { spawn } from "child_process";
 import { getSchedule } from "../lib/config";
-import { createRun, completeRun, appendRunOutput } from "../lib/runs";
+import { createRun, completeRun, appendRunOutput, updateRunUsage, getRunRecord, getRunOutput } from "../lib/runs";
 import { shouldUseMcpConfig, getMcpConfigPath } from "../lib/mcp-config";
+import { isNotionConnected, pushRunToNotion } from "../lib/notion-sync";
 
 function formatStreamLine(line: string): string {
   const ts = new Date().toISOString().slice(11, 19);
@@ -37,6 +38,11 @@ export function runWrappedCommand(name: string): void {
     process.exit(1);
   }
 
+  if (schedule.enabled === false) {
+    console.log(`Schedule "${name}" is disabled. Skipping.`);
+    process.exit(0);
+  }
+
   const record = createRun(name, "launchd");
 
   const env: Record<string, string | undefined> = { ...process.env, CLAUDE_SCHEDULE_INTERNAL: "1" };
@@ -68,6 +74,18 @@ export function runWrappedCommand(name: string): void {
         process.stdout.write(formatted);
         appendRunOutput(name, record.number, formatted);
       }
+      // 토큰 사용량 수집
+      try {
+        const obj = JSON.parse(line);
+        if (obj.type === "result") {
+          const cost = obj.total_cost_usd || 0;
+          const input = obj.usage?.input_tokens || 0;
+          const output = obj.usage?.output_tokens || 0;
+          if (cost > 0 || input > 0 || output > 0) {
+            updateRunUsage(name, record.number, cost, input, output);
+          }
+        }
+      } catch { /* not JSON */ }
     }
   });
 
@@ -89,6 +107,18 @@ export function runWrappedCommand(name: string): void {
     }
     const exitCode = code ?? 1;
     completeRun(name, record.number, exitCode);
+
+    // Notion에 실행 결과 push
+    if (isNotionConnected()) {
+      const finalRecord = getRunRecord(name, record.number);
+      const output = getRunOutput(name, record.number);
+      if (finalRecord) {
+        pushRunToNotion(name, finalRecord, output)
+          .then(() => process.exit(exitCode))
+          .catch(() => process.exit(exitCode));
+        return;
+      }
+    }
     process.exit(exitCode);
   });
 
